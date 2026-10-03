@@ -71,7 +71,7 @@ func seed(t *testing.T, s *Store) []byte {
 	}
 	exec(`INSERT INTO project(id,control_digest,enabled) VALUES('p',$1,true),('other',$2,true)`, credentials.Digest("control-fixture"), credentials.Digest("other-control"))
 	exec(`INSERT INTO subject(project_id,id) VALUES('p','owner'),('p','other-owner')`)
-	exec(`INSERT INTO auth_config(project_id,id,toolkit,display_name,runtime_id,auth_type,enabled,approved_actions) VALUES('p','ac','github','GitHub','runtime','OAUTH2',true,ARRAY['github.get_current_user'])`)
+	exec(`INSERT INTO auth_config(project_id,id,toolkit,display_name,runtime_id,auth_type,enabled,approved_actions,capabilities) VALUES('p','ac','github','GitHub','runtime','OAUTH2',true,ARRAY['github.get_current_user'],'{"auth_configured":true,"runtime_verified":true}')`)
 	exec(`INSERT INTO connection(project_id,id,subject_id,auth_config_id,toolkit,runtime_id,native_id,state) VALUES('p','ca','owner','ac','github','runtime','native-account','ACTIVE')`)
 	exec(`INSERT INTO agent_binding(project_id,agent_id,subject_id,enabled,connection_ids,action_ids) VALUES('p','agent','owner',true,ARRAY['ca'],ARRAY['github.get_current_user'])`)
 	exec(`INSERT INTO session(project_id,id,subject_id,agent_id,actor_id,task_id,grant_generation,bearer_digest,state,expires_at,runtime_token_id,runtime_ciphertext) VALUES('p','s','owner','agent','actor','task',1,$1,'ACTIVE',now()+interval '1 hour','rt',$2)`, credentials.Digest("session-fixture"), ciphertext)
@@ -96,6 +96,7 @@ func TestPostgresFreshDatabaseStartsClosedAndMigrationsRepeat(t *testing.T) {
 
 func TestPostgresAdmissionRechecksEveryGrant(t *testing.T) {
 	for name, mutation := range map[string]string{
+		"capability withdrawn":       `UPDATE auth_config SET capabilities='{}'`,
 		"null connection grant":      `UPDATE agent_binding SET connection_ids=ARRAY[NULL]::text[]`,
 		"null agent action grant":    `UPDATE agent_binding SET action_ids=ARRAY[NULL]::text[]`,
 		"null provider action grant": `UPDATE auth_config SET approved_actions=ARRAY[NULL]::text[]`,

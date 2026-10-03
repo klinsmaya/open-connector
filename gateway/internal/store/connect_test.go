@@ -20,7 +20,7 @@ func TestConnectTicketOwnershipAndConsumption(t *testing.T) {
 			for _, sql := range []string{
 				`INSERT INTO auth_config(project_id,id,toolkit,display_name,runtime_id,auth_type,enabled,approved_actions) VALUES('p','other-ac','slack','Slack','runtime','OAUTH2',true,ARRAY['slack.read'])`,
 				`INSERT INTO connection(project_id,id,subject_id,auth_config_id,toolkit,runtime_id,native_id,state) VALUES('p','other-ca','owner','other-ac','slack','runtime','other-native','ACTIVE')`,
-				`INSERT INTO session SELECT project_id,'unrelated',subject_id,agent_id,actor_id,task_id,grant_generation,decode(repeat('ab',32),'hex'),state,expires_at,issued_at,'other-token',runtime_ciphertext FROM session WHERE id='s'`,
+				`INSERT INTO session SELECT project_id,'unrelated',subject_id,agent_id,actor_id,task_id,grant_generation,decode(repeat('ab',32),'hex'),state,expires_at,issued_at,'other-token',runtime_ciphertext,runtime_id,native_token_name FROM session WHERE id='s'`,
 				`INSERT INTO session_grant VALUES('p','unrelated','other-ca',1,'slack.read')`,
 			} {
 				if _, err := db.Pool.Exec(ctx, sql); err != nil {

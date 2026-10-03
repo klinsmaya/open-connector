@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/klinsmaya/open-connector/gateway/internal/httpapi"
+	"github.com/klinsmaya/open-connector/gateway/internal/lifecycle"
 	"github.com/klinsmaya/open-connector/gateway/internal/store"
 )
 
@@ -38,6 +39,7 @@ func run() error {
 	nativeSecret := flag.String("native-admin-file", "", "native admin bearer file")
 	vaultFile := flag.String("vault-key-file", "", "32-byte raw gateway encryption key file")
 	publicOrigin := flag.String("public-origin", "", "browser-visible control origin")
+	mcpOrigin := flag.String("mcp-origin", "", "browser-visible execution origin")
 	flag.Parse()
 	if *mode != "serve" && *mode != "migrate" && *mode != "quarantine-restore" {
 		return errors.New("invalid mode")
@@ -104,7 +106,14 @@ func run() error {
 		if e != nil || !native.SafeURL(origin, true) || origin.Path != "" || origin.RawQuery != "" {
 			return errors.New("invalid public origin")
 		}
-		flow = &httpapi.ConnectAPI{DB: db, Runtimes: map[string]*native.Client{*nativeID: upstream}, Vault: vault, PublicOrigin: *publicOrigin, AllowLoopback: true}
+		mcpURL, e := url.Parse(*mcpOrigin)
+		if e != nil || !native.SafeURL(mcpURL, true) || mcpURL.Path != "" || mcpURL.RawQuery != "" {
+			return errors.New("invalid MCP origin")
+		}
+		flow = &httpapi.ConnectAPI{DB: db, Runtimes: map[string]*native.Client{*nativeID: upstream}, Vault: vault, PublicOrigin: *publicOrigin, MCPOrigin: *mcpOrigin, AllowLoopback: true}
+	}
+	if flow != nil {
+		go lifecycle.Run(ctx, db, flow.Runtimes)
 	}
 	ch, mh := httpapi.Handlers(db, flow)
 	a, err := net.Listen("tcp", *control)

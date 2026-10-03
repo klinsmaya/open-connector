@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/klinsmaya/open-connector/gateway/internal/credentials"
+	"github.com/klinsmaya/open-connector/gateway/internal/mcpserver"
 	"github.com/klinsmaya/open-connector/gateway/internal/store"
 )
 
@@ -38,8 +39,24 @@ func Handlers(authority Authority, connect *ConnectAPI) (http.Handler, http.Hand
 			return
 		}
 
+		if connect != nil {
+			parts := strings.Split(r.URL.Path, "/")
+			if len(parts) == 7 && parts[1] == "api" && parts[2] == "v3.1" && parts[3] == "internal" && parts[5] != "" {
+				if parts[4] == "agents" && parts[6] == "policy" && r.Method == http.MethodPut {
+					connect.syncPolicy(w, r, project, parts[5])
+					return
+				}
+				if parts[4] == "tasks" && parts[6] == "revoke" && r.Method == http.MethodPost {
+					connect.revokeTask(w, r, project, parts[5])
+					return
+				}
+			}
+		}
 		if connect != nil && r.Method == http.MethodPost {
 			switch r.URL.Path {
+			case "/api/v3.1/tool_router/session":
+				connect.createSession(w, r, project)
+				return
 			case "/api/v3.1/connected_accounts/link":
 				connect.create(w, r, project)
 				return
@@ -75,6 +92,10 @@ func Handlers(authority Authority, connect *ConnectAPI) (http.Handler, http.Hand
 		}
 		if _, err := authority.Admit(r.Context(), parts[2], token); err != nil {
 			failure(w, 401, "SESSION_AUTH_REQUIRED")
+			return
+		}
+		if connect != nil {
+			(&mcpserver.API{DB: connect.DB, Vault: connect.Vault, Runtimes: connect.Runtimes}).Serve(w, r, parts[2], token)
 			return
 		}
 		failure(w, 501, "UNSUPPORTED_CAPABILITY")

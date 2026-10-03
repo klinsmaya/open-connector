@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+var ErrNotFound = errors.New("native resource not found")
+
 var ErrUpstream = errors.New("native runtime unavailable or invalid response")
 
 type Client struct {
@@ -113,6 +115,9 @@ func (c *Client) do(ctx context.Context, method, path, subject string, input, ou
 		return ErrUpstream
 	}
 	defer res.Body.Close()
+	if res.StatusCode == http.StatusNotFound {
+		return ErrNotFound
+	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		return ErrUpstream
 	}

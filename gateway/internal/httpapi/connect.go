@@ -20,6 +20,7 @@ type ConnectAPI struct {
 	Runtimes      map[string]*native.Client
 	Vault         *credentials.Vault
 	PublicOrigin  string
+	MCPOrigin     string
 	AllowLoopback bool
 }
 

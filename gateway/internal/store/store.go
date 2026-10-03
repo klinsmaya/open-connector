@@ -168,7 +168,7 @@ func (s *Store) Admit(ctx context.Context, sessionID, token string) (Admission, 
  JOIN subject u ON u.project_id=s.project_id AND u.id=s.subject_id AND u.enabled
  JOIN agent_binding b ON b.project_id=s.project_id AND b.agent_id=s.agent_id
  AND b.subject_id=s.subject_id AND b.enabled AND b.generation=s.grant_generation
- WHERE s.id=$1 AND s.bearer_digest=$2 AND s.state='ACTIVE' AND s.expires_at>now()
+ WHERE NOT EXISTS(SELECT 1 FROM task_revocation tr WHERE tr.project_id=s.project_id AND tr.task_id=s.task_id AND tr.revoked) AND s.id=$1 AND s.bearer_digest=$2 AND s.state='ACTIVE' AND s.expires_at>now()
  AND EXISTS(SELECT 1 FROM recovery_state WHERE singleton AND NOT quarantined)
  AND EXISTS(SELECT 1 FROM session_grant g WHERE g.project_id=s.project_id AND g.session_id=s.id)
  AND NOT EXISTS(SELECT 1 FROM session_grant g
@@ -176,7 +176,7 @@ func (s *Store) Admit(ctx context.Context, sessionID, token string) (Admission, 
  LEFT JOIN auth_config ac ON ac.project_id=c.project_id AND ac.id=c.auth_config_id
  WHERE g.project_id=s.project_id AND g.session_id=s.id AND
  (c.id IS NULL OR c.state<>'ACTIVE' OR c.subject_id<>s.subject_id OR c.generation<>g.connection_generation
- OR ac.id IS NULL OR NOT ac.enabled OR c.toolkit<>ac.toolkit OR c.runtime_id<>ac.runtime_id
+ OR ac.id IS NULL OR NOT ac.enabled OR NOT(ac.capabilities @> '{"auth_configured":true,"runtime_verified":true}'::jsonb) OR c.toolkit<>ac.toolkit OR c.runtime_id<>ac.runtime_id
  OR (g.connection_id=ANY(b.connection_ids)) IS NOT TRUE OR (g.action_id=ANY(b.action_ids)) IS NOT TRUE
  OR (g.action_id=ANY(ac.approved_actions)) IS NOT TRUE))`, sessionID, credentials.Digest(token)).Scan(&a.ProjectID, &a.SessionID, &a.SubjectID, &a.ActorID, &a.AgentID, &a.TaskID)
 	if err != nil {

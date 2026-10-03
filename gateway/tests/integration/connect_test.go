@@ -15,6 +15,7 @@ import (
 
 	"github.com/klinsmaya/open-connector/gateway/internal/credentials"
 	"github.com/klinsmaya/open-connector/gateway/internal/httpapi"
+	"github.com/klinsmaya/open-connector/gateway/internal/lifecycle"
 	"github.com/klinsmaya/open-connector/gateway/internal/native"
 	sdk "github.com/multica-ai/multica/server/pkg/composio"
 )
@@ -47,10 +48,13 @@ func TestRealSDKGatewayPostgresNativeOAuthIdentityGate(t *testing.T) {
 			}
 			vault, _ := credentials.NewVault(bytes.Repeat([]byte{9}, 32))
 			flow := &httpapi.ConnectAPI{DB: db, Runtimes: map[string]*native.Client{"runtime": nc}, Vault: vault, AllowLoopback: true}
-			control, _ := httpapi.Handlers(db, flow)
+			control, data := httpapi.Handlers(db, flow)
 			server := httptest.NewServer(control)
 			defer server.Close()
 			flow.PublicOrigin = server.URL
+			dataServer := httptest.NewServer(data)
+			defer dataServer.Close()
+			flow.MCPOrigin = dataServer.URL
 			run := func(sql string, args ...any) {
 				t.Helper()
 				if _, err := db.Pool.Exec(ctx, sql, args...); err != nil {
@@ -186,6 +190,62 @@ func TestRealSDKGatewayPostgresNativeOAuthIdentityGate(t *testing.T) {
 			hidden, listErr := client.ListConnectedAccounts(ctx, sdk.ListConnectedAccountsRequest{UserIDs: []string{"another-user"}, ConnectedAccountIDs: []string{link.ConnectedAccountID}})
 			if listErr != nil || len(hidden.Items) != 0 {
 				t.Fatal("account filters did not intersect")
+			}
+			if !mismatched {
+
+				compatClient, e := sdk.NewClient(sdk.Options{APIKey: "control-fixture", BaseURL: server.URL + "/api/v3.1", Backend: "compat", AllowInsecureLoopback: true})
+				if e != nil {
+					t.Fatal(e)
+				}
+				e = compatClient.SyncCompatibilityPolicy(ctx, "agent", sdk.CompatibilityPolicy{OwnerUserID: "owner", SourceRevision: 1, ConnectedAccounts: map[string][]string{"example": {link.ConnectedAccountID}}})
+				if e != nil {
+					t.Fatal(e)
+				}
+				session, e := compatClient.CreateSession(ctx, sdk.CreateSessionRequest{UserID: "owner", Toolkits: map[string]any{"enable": []string{"example"}}, ConnectedAccounts: map[string]any{"example": []string{link.ConnectedAccountID}}, CompatContext: &sdk.CompatibilityContext{AgentID: "agent", ActorUserID: "owner", TaskID: "task"}})
+				if e != nil {
+					t.Fatal(e)
+				}
+				headers, e := compatClient.CompatibilitySessionHeaders(session, dataServer.URL, true)
+				if e != nil {
+					t.Fatal(e)
+				}
+				bearer := strings.TrimPrefix(headers["Authorization"], "Bearer ")
+				if _, e = db.Admit(ctx, session.SessionID, bearer); e != nil {
+					t.Fatal(e)
+				}
+				nativeTokens, e := nc.Tokens(ctx)
+				if e != nil || len(nativeTokens) != 1 || len(nativeTokens[0].Connections) != 1 || len(nativeTokens[0].Actions) != 1 {
+					t.Fatalf("native exact grants: %+v %v", nativeTokens, e)
+				}
+				if nativeTokens[0].Actions[0] != "example.read" {
+					t.Fatal("native action broadened")
+				}
+				if strings.Contains(headers["Authorization"], "oct_") || strings.Contains(headers["Authorization"], "control-fixture") {
+					t.Fatal("upstream/control credential leaked")
+				}
+				exerciseMCP(t, ctx, session.MCP.URL, bearer, link.ConnectedAccountID)
+				if e = compatClient.RevokeCompatibilityTask(ctx, "task"); e != nil {
+					t.Fatal(e)
+				}
+				_, remintErr := compatClient.CreateSession(ctx, sdk.CreateSessionRequest{UserID: "owner", Toolkits: map[string]any{"enable": []string{"example"}}, ConnectedAccounts: map[string]any{"example": []string{link.ConnectedAccountID}}, CompatContext: &sdk.CompatibilityContext{AgentID: "agent", ActorUserID: "owner", TaskID: "task"}})
+				if remintErr == nil {
+					t.Fatal("terminal task reminted session")
+				}
+				if _, e = db.Admit(ctx, session.SessionID, bearer); e == nil {
+					t.Fatal("revoked unexpired session admitted")
+				}
+				if e = lifecycle.Cleanup(ctx, db, flow.Runtimes); e != nil {
+					t.Fatal(e)
+				}
+				remaining, e := nc.Tokens(ctx)
+				if e != nil || len(remaining) != 0 {
+					t.Fatalf("native token cleanup: %v %v", remaining, e)
+				}
+				var retained int
+				if e = db.Pool.QueryRow(ctx, `SELECT octet_length(runtime_ciphertext) FROM session WHERE id=$1`, session.SessionID).Scan(&retained); e != nil || retained == 0 {
+					t.Fatal("cleanup lost recovery ciphertext")
+				}
+
 			}
 			// The record retains only native references; provider secrets never enter gateway JSON.
 			var record []byte
