@@ -13,6 +13,8 @@ import (
 
 type authority struct{}
 
+func (authority) Accounts(context.Context, string) ([]store.Account, error) { return nil, nil }
+
 func (authority) Catalog(context.Context, string) ([]store.CatalogEntry, error) { return nil, nil }
 
 func (authority) Ready(context.Context) error { return nil }
@@ -31,7 +33,7 @@ func (authority) Admit(_ context.Context, id, t string) (store.Admission, error)
 }
 
 func TestCredentialClassesCannotCrossListeners(t *testing.T) {
-	control, data := Handlers(authority{})
+	control, data := Handlers(authority{}, nil)
 	for _, tc := range []struct {
 		name        string
 		handler     http.Handler

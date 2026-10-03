@@ -10,16 +10,16 @@
 | C02 | 未配置的 provider 不显示为 connectable                 | PARTIAL               | Catalog only; docs/t03-evidence.md                      |
 | C03 | 重复数组过滤与 auth_config 过滤格式正确                | PARTIAL               | Catalog only; docs/t03-evidence.md                      |
 | C04 | 分页在权限过滤后执行，游标不能跨项目复用               | PARTIAL               | Catalog only; docs/t03-evidence.md                      |
-| C05 | connected_account 包含校验需要的 user/auth config 字段 | NOT_RUN               | 待填写                                                  |
+| C05 | connected_account 包含校验需要的 user/auth config 字段 | PARTIAL               | docs/t04-evidence.md; separate Multica login tests      |
 | C06 | 未支持路由明确失败，不能伪造 2xx                       | PASS (SDK/gateway/PG) | tests/integration/catalog_test.go; docs/t03-evidence.md |
-| A01 | OAuth 完成后真实账号与 expected subject 匹配           | NOT_RUN               | 待填写                                                  |
+| A01 | OAuth 完成后真实账号与 expected subject 匹配           | PARTIAL               | docs/t04-evidence.md; separate Multica login tests      |
 | A02 | 拒绝授权不创建 ACTIVE 映射                             | NOT_RUN               | 待填写                                                  |
-| A03 | 伪造 success query 不能激活账号                        | NOT_RUN               | 待填写                                                  |
-| A04 | 转发链接给其他登录用户不能完成绑定                     | NOT_RUN               | 待填写                                                  |
-| A05 | 重复 callback 不产生额外连接或权限                     | NOT_RUN               | 待填写                                                  |
+| A03 | 伪造 success query 不能激活账号                        | PARTIAL               | docs/t04-evidence.md; separate Multica login tests      |
+| A04 | 转发链接给其他登录用户不能完成绑定                     | PARTIAL               | docs/t04-evidence.md; separate Multica login tests      |
+| A05 | 重复 callback 不产生额外连接或权限                     | PARTIAL               | docs/t04-evidence.md; separate Multica login tests      |
 | A06 | 过期/替代/已撤销交易的晚 callback 不复活连接           | NOT_RUN               | 待填写                                                  |
 | A07 | 同 provider 两用户并发授权互不取消                     | PARTIAL               | Native only; docs/t05-evidence.md                       |
-| A08 | 服务重启后可恢复授权事务并正确清理孤儿连接             | NOT_RUN               | 待填写                                                  |
+| A08 | 服务重启后可恢复授权事务并正确清理孤儿连接             | PARTIAL               | docs/t04-evidence.md; separate Multica login tests      |
 | S01 | A 用户 pin B 用户 connected_account_id 被拒绝          | PARTIAL               | Store/handler tests only; docs/t02-evidence.md          |
 | S02 | 正确账号但错误 toolkit/auth config 被拒绝              | PARTIAL               | Store/handler tests only; docs/t02-evidence.md          |
 | S03 | 空连接或 Action 集合不创建不受限 Token                 | PARTIAL               | Store/handler tests only; docs/t02-evidence.md          |

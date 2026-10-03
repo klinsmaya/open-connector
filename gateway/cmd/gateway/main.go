@@ -6,8 +6,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/klinsmaya/open-connector/gateway/internal/credentials"
+	"github.com/klinsmaya/open-connector/gateway/internal/native"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -30,6 +33,11 @@ func run() error {
 	dbFile := flag.String("database-url-file", "", "path to a local database URL secret")
 	control := flag.String("control-listen", "127.0.0.1:8080", "local control listener")
 	execution := flag.String("mcp-listen", "127.0.0.1:8081", "local execution listener")
+	nativeURL := flag.String("native-url", "", "explicit native runtime origin")
+	nativeID := flag.String("native-id", "runtime", "native runtime identity used by auth configs")
+	nativeSecret := flag.String("native-admin-file", "", "native admin bearer file")
+	vaultFile := flag.String("vault-key-file", "", "32-byte raw gateway encryption key file")
+	publicOrigin := flag.String("public-origin", "", "browser-visible control origin")
 	flag.Parse()
 	if *mode != "serve" && *mode != "migrate" && *mode != "quarantine-restore" {
 		return errors.New("invalid mode")
@@ -74,7 +82,31 @@ func run() error {
 	if err = db.Ready(ctx); err != nil {
 		return errors.New("database is not ready or is quarantined")
 	}
-	ch, mh := httpapi.Handlers(db)
+	var flow *httpapi.ConnectAPI
+	if *nativeURL != "" || *nativeSecret != "" || *vaultFile != "" || *publicOrigin != "" {
+		admin, e := os.ReadFile(*nativeSecret)
+		if e != nil {
+			return errors.New("native admin secret unavailable")
+		}
+		key, e := os.ReadFile(*vaultFile)
+		if e != nil {
+			return errors.New("vault key unavailable")
+		}
+		vault, e := credentials.NewVault(key)
+		if e != nil {
+			return e
+		}
+		upstream, e := native.New(*nativeURL, strings.TrimSpace(string(admin)), true)
+		if e != nil {
+			return e
+		}
+		origin, e := url.Parse(*publicOrigin)
+		if e != nil || !native.SafeURL(origin, true) || origin.Path != "" || origin.RawQuery != "" {
+			return errors.New("invalid public origin")
+		}
+		flow = &httpapi.ConnectAPI{DB: db, Runtimes: map[string]*native.Client{*nativeID: upstream}, Vault: vault, PublicOrigin: *publicOrigin, AllowLoopback: true}
+	}
+	ch, mh := httpapi.Handlers(db, flow)
 	a, err := net.Listen("tcp", *control)
 	if err != nil {
 		return errors.New("control listener unavailable")

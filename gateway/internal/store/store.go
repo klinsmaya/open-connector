@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -105,7 +106,8 @@ func (s *Store) Migrate(ctx context.Context) error {
 		// Entity creation and the ledger must commit together. Concurrent indexes
 		// cannot share that transaction. A crash before ledger insertion stops
 		// the next migration attempt for explicit reconciliation, never serving.
-		if f.Name() == "001_entities.sql" {
+		sql := strings.ToUpper(strings.TrimSpace(string(b)))
+		if !strings.HasPrefix(sql, "CREATE INDEX CONCURRENTLY") && !strings.HasPrefix(sql, "CREATE UNIQUE INDEX CONCURRENTLY") {
 			tx, err := c.Begin(ctx)
 			if err != nil {
 				return err

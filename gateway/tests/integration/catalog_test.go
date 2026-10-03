@@ -5,54 +5,17 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
-	"os"
 	"strings"
 	"testing"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/klinsmaya/open-connector/gateway/internal/credentials"
 	"github.com/klinsmaya/open-connector/gateway/internal/httpapi"
-	"github.com/klinsmaya/open-connector/gateway/internal/store"
 	sdk "github.com/multica-ai/multica/server/pkg/composio"
 )
 
 func TestRealSDKGatewayPostgresCatalogAndCursorIsolation(t *testing.T) {
-	dsn := os.Getenv("GATEWAY_TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("NOT_RUN: isolated PostgreSQL required")
-	}
+	db := integrationDatabase(t)
 	ctx := context.Background()
-	admin, err := store.Open(ctx, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	schema := pgx.Identifier{"catalog_" + credentials.NewToken()[:16]}.Sanitize()
-	if _, err = admin.Pool.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		_, err := admin.Pool.Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
-		if err != nil {
-			t.Error(err)
-		}
-		admin.Pool.Close()
-	})
-	u, err := url.Parse(dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	q := u.Query()
-	q.Set("search_path", schema)
-	u.RawQuery = q.Encode()
-	db, err := store.Open(ctx, u.String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(db.Pool.Close)
-	if err = db.Migrate(ctx); err != nil {
-		t.Fatal(err)
-	}
 	exec := func(sql string, args ...any) {
 		t.Helper()
 		if _, err := db.Pool.Exec(ctx, sql, args...); err != nil {
@@ -70,7 +33,7 @@ func TestRealSDKGatewayPostgresCatalogAndCursorIsolation(t *testing.T) {
 	} {
 		exec(`INSERT INTO auth_config(project_id,id,toolkit,display_name,runtime_id,auth_type,enabled,approved_actions,capabilities) VALUES($1,$2,$3,$3,'runtime','OAUTH2',$4,ARRAY['github.get_current_user'],jsonb_build_object('auth_configured',$5::boolean,'runtime_verified',true))`, e.project, e.id, e.slug, e.enabled, e.configured)
 	}
-	control, _ := httpapi.Handlers(db)
+	control, _ := httpapi.Handlers(db, nil)
 	server := httptest.NewServer(control)
 	t.Cleanup(server.Close)
 	newClient := func(key string) *sdk.Client {
