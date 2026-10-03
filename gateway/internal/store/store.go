@@ -48,10 +48,32 @@ func (s *Store) Migrate(ctx context.Context) error {
 		return err
 	}
 	defer c.Release()
-	if _, err = c.Exec(ctx, "SELECT pg_advisory_lock(73291042)"); err != nil {
-		return err
+	// Waiting inside pg_advisory_lock retains a statement snapshot, which can
+	// deadlock a concurrent index build waiting for old snapshots. Poll with
+	// completed transactions, sleeping outside PostgreSQL between attempts.
+	for {
+		var locked bool
+		if err = c.QueryRow(ctx, "SELECT pg_try_advisory_lock(73291042)").Scan(&locked); err != nil {
+			return err
+		}
+		if locked {
+			break
+		}
+		timer := time.NewTimer(25 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
 	}
-	defer func() { _, _ = c.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock(73291042)") }()
+	defer func() {
+		unlock, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if _, err := c.Exec(unlock, "SELECT pg_advisory_unlock(73291042)"); err != nil {
+			_ = c.Conn().Close(unlock)
+		}
+	}()
 	if _, err = c.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migration(name text PRIMARY KEY, digest bytea NOT NULL)`); err != nil {
 		return err
 	}

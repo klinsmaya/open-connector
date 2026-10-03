@@ -1,7 +1,7 @@
 # OpenConnector compatibility gateway
 
-Work in progress: multica-core-v1, local development only. No executable
-API or compatibility acceptance is delivered by the initial contract freeze.
+Work in progress: multica-core-v1, local development only. The loopback-only development executable exposes catalog reads; connection
+and session APIs are still unsupported. See the evidence for tested scope.
 
 The adjacent authorized Multica checkout is required at `../../multica`.
 The contract suite imports its real `server/pkg/composio` package.

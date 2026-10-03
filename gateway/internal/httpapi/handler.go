@@ -13,6 +13,7 @@ import (
 )
 
 type Authority interface {
+	Catalog(context.Context, string) ([]store.CatalogEntry, error)
 	Ready(context.Context) error
 	Project(context.Context, string) (string, error)
 	Admit(context.Context, string, string) (store.Admission, error)
@@ -26,8 +27,14 @@ func Handlers(authority Authority) (http.Handler, http.Handler) {
 			failure(w, 401, "CONTROL_AUTH_REQUIRED")
 			return
 		}
-		if _, err := authority.Project(r.Context(), r.Header.Get("x-api-key")); err != nil {
+		project, err := authority.Project(r.Context(), r.Header.Get("x-api-key"))
+		if err != nil {
 			failure(w, 401, "CONTROL_AUTH_REQUIRED")
+			return
+		}
+
+		if r.Method == http.MethodGet && (r.URL.Path == "/api/v3.1/toolkits" || r.URL.Path == "/api/v3.1/auth_configs" || strings.HasPrefix(r.URL.Path, "/api/v3.1/toolkits/")) {
+			catalog(authority, w, r, project)
 			return
 		}
 		failure(w, 501, "UNSUPPORTED_CAPABILITY")

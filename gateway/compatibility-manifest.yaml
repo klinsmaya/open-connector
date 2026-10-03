@@ -1,6 +1,6 @@
 # 设计模板，不是运行配置、实测报告或已验证的兼容声明。
 manifest_version: 1
-status: recovery_preflight
+status: development_partial
 prepared_at: "2026-10-03"
 profile: multica-core-v1
 mcp_tool_profile: native-tools-v1

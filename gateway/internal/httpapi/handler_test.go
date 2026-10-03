@@ -13,6 +13,8 @@ import (
 
 type authority struct{}
 
+func (authority) Catalog(context.Context, string) ([]store.CatalogEntry, error) { return nil, nil }
+
 func (authority) Ready(context.Context) error { return nil }
 
 func (authority) Project(_ context.Context, t string) (string, error) {
