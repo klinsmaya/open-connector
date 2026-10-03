@@ -2,7 +2,7 @@
 
 版本：1.0 · 2026-10-02
 
-本表全部处于待执行状态，不代表通过。详见《完整实施方案.md》第16节。
+本表仅记录本环境实际证据；PARTIAL 不能视为端到端通过。原附件验收表保持不变。详见《完整实施方案.md》第16节。
 
 | ID  | 验收内容                                               | 状态                  | 证据/测试路径                                           |
 | --- | ------------------------------------------------------ | --------------------- | ------------------------------------------------------- |
@@ -18,18 +18,18 @@
 | A04 | 转发链接给其他登录用户不能完成绑定                     | NOT_RUN               | 待填写                                                  |
 | A05 | 重复 callback 不产生额外连接或权限                     | NOT_RUN               | 待填写                                                  |
 | A06 | 过期/替代/已撤销交易的晚 callback 不复活连接           | NOT_RUN               | 待填写                                                  |
-| A07 | 同 provider 两用户并发授权互不取消                     | NOT_RUN               | 待填写                                                  |
+| A07 | 同 provider 两用户并发授权互不取消                     | PARTIAL               | Native only; docs/t05-evidence.md                       |
 | A08 | 服务重启后可恢复授权事务并正确清理孤儿连接             | NOT_RUN               | 待填写                                                  |
-| S01 | A 用户 pin B 用户 connected_account_id 被拒绝          | NOT_RUN               | 待填写                                                  |
-| S02 | 正确账号但错误 toolkit/auth config 被拒绝              | NOT_RUN               | 待填写                                                  |
-| S03 | 空连接或 Action 集合不创建不受限 Token                 | NOT_RUN               | 待填写                                                  |
-| S04 | 会话 token 不能调用控制 API 或 OpenConnector 管理面    | NOT_RUN               | 待填写                                                  |
+| S01 | A 用户 pin B 用户 connected_account_id 被拒绝          | PARTIAL               | Store/handler tests only; docs/t02-evidence.md          |
+| S02 | 正确账号但错误 toolkit/auth config 被拒绝              | PARTIAL               | Store/handler tests only; docs/t02-evidence.md          |
+| S03 | 空连接或 Action 集合不创建不受限 Token                 | PARTIAL               | Store/handler tests only; docs/t02-evidence.md          |
+| S04 | 会话 token 不能调用控制 API 或 OpenConnector 管理面    | PARTIAL               | Store/handler tests only; docs/t02-evidence.md          |
 | S05 | 项目 Key 不进入 Agent overlay、进程环境或普通日志      | NOT_RUN               | 待填写                                                  |
 | S06 | 修改 connectionName/native ID 不能越权或默认回退       | NOT_RUN               | 待填写                                                  |
-| S07 | 权限变化后旧会话被拒绝，新建会话重新计算交集           | NOT_RUN               | 待填写                                                  |
+| S07 | 权限变化后旧会话被拒绝，新建会话重新计算交集           | PARTIAL               | Store/handler tests only; docs/t02-evidence.md          |
 | S08 | 排队时间超过 token TTL 时启动前安全重新签发            | NOT_RUN               | 待填写                                                  |
 | S09 | 任务完成、取消或 Agent 删除后会话不可继续执行          | NOT_RUN               | 待填写                                                  |
-| S10 | 权限存储不可用时停止执行，不依赖旧缓存放行             | NOT_RUN               | 待填写                                                  |
+| S10 | 权限存储不可用时停止执行，不依赖旧缓存放行             | PARTIAL               | Store/handler tests only; docs/t02-evidence.md          |
 | M01 | MCP initialize、tools/list、tools/call 在目标 CLI 通过 | NOT_RUN               | 待填写                                                  |
 | M02 | discovery、guide 和 execute 具有一致的权限视图         | NOT_RUN               | 待填写                                                  |
 | M03 | 原有 Composio 提示词/Skill 不导致工具名幻觉            | NOT_RUN               | 待填写                                                  |
@@ -39,8 +39,8 @@
 | E03 | 第三方已执行但响应丢失进入 UNKNOWN，不盲重试           | NOT_RUN               | 待填写                                                  |
 | E04 | 新业务意图即使参数相同也有独立操作 ID                  | NOT_RUN               | 待填写                                                  |
 | E05 | 超过幂等窗口不能声称自动重放仍安全                     | NOT_RUN               | 待填写                                                  |
-| R01 | 撤销立即阻止新的执行 admission                         | NOT_RUN               | 待填写                                                  |
-| R02 | 上游撤权失败仍保留恢复所需信息且不恢复 ACTIVE          | NOT_RUN               | 待填写                                                  |
+| R01 | 撤销立即阻止新的执行 admission                         | PARTIAL               | Store/handler tests only; docs/t02-evidence.md          |
+| R02 | 上游撤权失败仍保留恢复所需信息且不恢复 ACTIVE          | PARTIAL               | Store/handler tests only; docs/t02-evidence.md          |
 | R03 | unsupported 明确显示，与“上游已撤销”不同               | NOT_RUN               | 待填写                                                  |
 | R04 | revoke 与 delete 重复调用均满足各自幂等契约            | NOT_RUN               | 待填写                                                  |
 | R05 | 替换真实账号不会把旧 session 权限移给新账号            | NOT_RUN               | 待填写                                                  |

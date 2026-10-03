@@ -6,21 +6,21 @@ observations. `tests/contract` imports the real Multica SDK through a local
 module replacement; it does not reimplement that SDK. Current Multica SDK
 and integration source is byte-identical to the research baseline.
 
-| Boundary                     | Contract                                                                                                       | Gateway status  |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------- |
+| Boundary                     | Contract                                                                                                       | Gateway status        |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------- |
 | GET toolkits                 | items/next_cursor/total_items; category, limit, cursor, sort_by                                                | SDK_GATEWAY_PG_TESTED |
 | GET toolkit                  | stable slug descriptor                                                                                         | SDK_GATEWAY_PG_TESTED |
 | GET auth_configs             | single comma-separated toolkit_slug, boolean is_composio_managed, show_disabled                                | SDK_GATEWAY_PG_TESTED |
-| POST connected_accounts/link | user_id, auth_config_id, callback_url; redirect_url, expiry, stable account ID                                 | NOT_IMPLEMENTED |
-| GET connected_accounts       | repeated user_ids/toolkit_slugs/auth_config_ids/connected_account_ids/statuses; intersection before pagination | NOT_IMPLEMENTED |
-| Account response             | id, user_id, auth_config_id, nested auth_config.id, toolkit.slug, uppercase status                             | NOT_IMPLEMENTED |
-| POST account/revoke          | unsupported is non-2xx and never 404; preserve credentials on failure                                          | NOT_IMPLEMENTED |
-| DELETE account               | SDK treats 404 as success; use 501 for unsupported                                                             | NOT_IMPLEMENTED |
-| POST tool_router/session     | user_id, toolkits.enable, connected_accounts map of slug to ID arrays                                          | NOT_IMPLEMENTED |
-| MCP response                 | type/http and URL; proposed compat-only headers; current SDK drops headers                                     | NOT_IMPLEMENTED |
-| SDK errors                   | nested error with numeric code/status and slug/request_id                                                      | NOT_IMPLEMENTED |
-| Native Action                | POST /v1/actions/:actionId, Bearer, x-oo-connector-app-id, Idempotency-Key, input object                       | NOT_TESTED      |
-| Native MCP                   | list_apps, list_connections, search_actions, get_action_guide, execute_action                                  | SNAPSHOT_ONLY   |
+| POST connected_accounts/link | user_id, auth_config_id, callback_url; redirect_url, expiry, stable account ID                                 | NOT_IMPLEMENTED       |
+| GET connected_accounts       | repeated user_ids/toolkit_slugs/auth_config_ids/connected_account_ids/statuses; intersection before pagination | NOT_IMPLEMENTED       |
+| Account response             | id, user_id, auth_config_id, nested auth_config.id, toolkit.slug, uppercase status                             | NOT_IMPLEMENTED       |
+| POST account/revoke          | unsupported is non-2xx and never 404; preserve credentials on failure                                          | NOT_IMPLEMENTED       |
+| DELETE account               | SDK treats 404 as success; use 501 for unsupported                                                             | NOT_IMPLEMENTED       |
+| POST tool_router/session     | user_id, toolkits.enable, connected_accounts map of slug to ID arrays                                          | NOT_IMPLEMENTED       |
+| MCP response                 | type/http and URL; proposed compat-only headers; current SDK drops headers                                     | NOT_IMPLEMENTED       |
+| SDK errors                   | nested error with numeric code/status and slug/request_id                                                      | NOT_IMPLEMENTED       |
+| Native Action                | POST /v1/actions/:actionId, Bearer, x-oo-connector-app-id, Idempotency-Key, input object                       | NOT_TESTED            |
+| Native MCP                   | list_apps, list_connections, search_actions, get_action_guide, execute_action                                  | SNAPSHOT_ONLY         |
 
 Compatibility must reject unknown security constraints, empty grants,
 unapproved actions and unsupported meta-tools. No default connection or
