@@ -23,8 +23,9 @@ import (
 )
 
 func TestRealSDKGatewayPostgresNativeOAuthIdentityGate(t *testing.T) {
-	for _, mismatched := range []bool{false, true} {
-		t.Run(map[bool]string{false: "matching browser", true: "forwarded link"}[mismatched], func(t *testing.T) {
+	for _, scenario := range []string{"matching browser", "forwarded link", "denied authorization", "expired late callback"} {
+		t.Run(scenario, func(t *testing.T) {
+			mismatched := scenario == "forwarded link"
 			db := integrationDatabase(t)
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
@@ -110,6 +111,32 @@ func TestRealSDKGatewayPostgresNativeOAuthIdentityGate(t *testing.T) {
 			if forged.StatusCode != 409 {
 				t.Fatalf("query activated %d", forged.StatusCode)
 			}
+			if scenario == "denied authorization" {
+				denied := call("GET", nativeURL+"/oauth/callback?state="+url.QueryEscape(state)+"&error=access_denied", "", "")
+				if denied.StatusCode != 302 && denied.StatusCode != 303 {
+					t.Fatalf("native denial %d", denied.StatusCode)
+				}
+				polled := call("GET", server.URL+linkURL.Path+"/poll?"+linkURL.RawQuery, "", "")
+				if polled.StatusCode != 409 {
+					t.Fatalf("denial poll %d", polled.StatusCode)
+				}
+				var phase string
+				var count int
+				if e := db.Pool.QueryRow(ctx, `SELECT phase FROM connect_transaction WHERE id=$1`, link.ConnectedAccountID).Scan(&phase); e != nil || phase != "FAILED" {
+					t.Fatalf("denied phase %s %v", phase, e)
+				}
+				if e := db.Pool.QueryRow(ctx, `SELECT count(*) FROM connection WHERE state='ACTIVE'`).Scan(&count); e != nil || count != 0 {
+					t.Fatal("denial activated account")
+				}
+				late := call("GET", nativeURL+"/oauth/callback?state="+url.QueryEscape(state)+"&code=offline-fixture", "", "")
+				if late.StatusCode < 400 {
+					t.Fatal("denied native state reused")
+				}
+				return
+			}
+			if scenario == "expired late callback" {
+				run(`UPDATE connect_transaction SET expires_at=now()-interval '1 second' WHERE id=$1`, link.ConnectedAccountID)
+			}
 			callback := call("GET", nativeURL+"/oauth/callback?state="+url.QueryEscape(state)+"&code=offline-fixture", "", "")
 			if callback.StatusCode != 302 && callback.StatusCode != 303 {
 				t.Fatalf("native callback %d", callback.StatusCode)
@@ -119,6 +146,17 @@ func TestRealSDKGatewayPostgresNativeOAuthIdentityGate(t *testing.T) {
 				t.Fatalf("unexpected native callback target")
 			}
 			candidate := call("GET", returned, "", "")
+			if scenario == "expired late callback" {
+				if candidate.StatusCode != 410 {
+					t.Fatalf("late callback admitted %d", candidate.StatusCode)
+				}
+				var count int
+				if e := db.Pool.QueryRow(ctx, `SELECT count(*) FROM connection WHERE state='ACTIVE'`).Scan(&count); e != nil || count != 0 {
+					t.Fatal("late callback activated account")
+				}
+				return
+			}
+
 			if candidate.StatusCode != 303 {
 				t.Fatalf("poll %d", candidate.StatusCode)
 			}
@@ -256,6 +294,9 @@ func TestRealSDKGatewayPostgresNativeOAuthIdentityGate(t *testing.T) {
 				if strings.Contains(headers["Authorization"], "oct_") || strings.Contains(headers["Authorization"], "control-fixture") {
 					t.Fatal("upstream/control credential leaked")
 				}
+				run(`INSERT INTO subject(project_id,id) VALUES('p','other-owner') ON CONFLICT DO NOTHING`)
+				run(`INSERT INTO auth_config(project_id,id,toolkit,display_name,runtime_id,auth_type,enabled,approved_actions,capabilities) VALUES('p','ungranted','ungranted','Ungrant','runtime','OAUTH2',true,ARRAY['ungranted.read'],'{"auth_configured":true,"runtime_verified":true}')`)
+				run(`INSERT INTO connection(project_id,id,subject_id,auth_config_id,toolkit,runtime_id,native_id,state) VALUES('p','other-account','other-owner','ungranted','ungranted','runtime','other-native','ACTIVE')`)
 				exerciseMCP(t, ctx, session.MCP.URL, bearer, link.ConnectedAccountID)
 				if e = compatClient.RevokeCompatibilityTask(ctx, "task"); e != nil {
 					t.Fatal(e)
@@ -263,6 +304,20 @@ func TestRealSDKGatewayPostgresNativeOAuthIdentityGate(t *testing.T) {
 				_, remintErr := compatClient.CreateSession(ctx, sdk.CreateSessionRequest{UserID: "owner", Toolkits: map[string]any{"enable": []string{"example"}}, ConnectedAccounts: map[string]any{"example": []string{link.ConnectedAccountID}}, CompatContext: &sdk.CompatibilityContext{AgentID: "agent", ActorUserID: "owner", TaskID: "task"}})
 				if remintErr == nil {
 					t.Fatal("terminal task reminted session")
+				}
+				for _, name := range []string{"list_apps", "list_connections", "search_actions", "get_action_guide", "execute_action"} {
+					req, _ := http.NewRequestWithContext(ctx, "POST", session.MCP.URL, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"`+name+`","arguments":{}}}`))
+					req.Header.Set("Authorization", "Bearer "+bearer)
+					req.Header.Set("Content-Type", "application/json")
+					req.Header.Set("Accept", "application/json, text/event-stream")
+					res, err := http.DefaultClient.Do(req)
+					if err != nil {
+						t.Fatal(err)
+					}
+					res.Body.Close()
+					if res.StatusCode != 401 {
+						t.Fatalf("revoked %s admitted: %d", name, res.StatusCode)
+					}
 				}
 				if _, e = db.Admit(ctx, session.SessionID, bearer); e == nil {
 					t.Fatal("revoked unexpired session admitted")

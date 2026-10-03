@@ -47,6 +47,13 @@ const { app } = await createConnectApp({
         ],
         actions: [
           defineProviderAction("example", {
+            name: "hidden",
+            description: "Hidden fixture",
+            operationType: "read",
+            inputSchema: s.object({}),
+            outputSchema: s.object({}),
+          }),
+          defineProviderAction("example", {
             name: "read",
             description: "Read fixture",
             operationType: "read",
@@ -56,12 +63,13 @@ const { app } = await createConnectApp({
         ],
       },
     ],
-    { executableActionIds: ["example.read"] },
+    { executableActionIds: ["example.read", "example.hidden"] },
   ),
   runtimeDatabase: database,
   providerLoader: new ProviderLoader({
     example: async () => ({
       executors: {
+        "example.hidden": async () => ({ ok: true, output: {} }),
         "example.read": async (input) => ({ ok: true, output: { ...(input as object), executions: ++executions } }),
       },
       oauth: {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -33,6 +34,20 @@ func exerciseMCP(t *testing.T, ctx context.Context, endpoint, bearer, connection
 	if err != nil || len(list.Tools) != 5 {
 		t.Fatalf("tools=%+v error=%v", list, err)
 	}
+	names := make([]string, 0, len(list.Tools))
+	for _, tool := range list.Tools {
+		names = append(names, tool.Name)
+	}
+	slices.Sort(names)
+	if !slices.Equal(names, []string{"execute_action", "get_action_guide", "list_apps", "list_connections", "search_actions"}) {
+		t.Fatalf("tool surface changed: %v", names)
+	}
+	for _, name := range []string{"COMPOSIO_REMOTE_WORKBENCH", "COMPOSIO_REMOTE_BASH_TOOL", "COMPOSIO_MULTI_EXECUTE_TOOL", "proxy", "remote_bash", "workbench"} {
+		result, e := session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: map[string]any{}})
+		if e == nil && !result.IsError {
+			t.Fatalf("unsupported tool accepted: %s", name)
+		}
+	}
 	call := func(name string, args map[string]any, rejected bool) string {
 		t.Helper()
 		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: args})
@@ -50,7 +65,16 @@ func exerciseMCP(t *testing.T, ctx context.Context, endpoint, bearer, connection
 		t.Fatal("missing compatibility connection")
 	}
 	call("list_connections", map[string]any{"connectionName": "native"}, true)
-	call("search_actions", map[string]any{"query": "fixture"}, false)
+	apps := call("list_apps", map[string]any{}, false)
+	if !strings.Contains(apps, "example") || strings.Contains(apps, "ungranted") || strings.Contains(connections, "other-account") {
+		t.Fatal("discovery leaked ungranted resource")
+	}
+	actions := call("search_actions", map[string]any{"query": "fixture"}, false)
+	if !strings.Contains(actions, "example.read") || strings.Contains(actions, "example.hidden") {
+		t.Fatal("search view differs from exact action grants")
+	}
+	call("get_action_guide", map[string]any{"actionId": "example.hidden", "connectionName": connection}, true)
+	call("get_action_guide", map[string]any{"actionId": "example.read", "connectionName": "other-account"}, true)
 	call("get_action_guide", map[string]any{"actionId": "example.read", "connectionName": connection}, false)
 	call("get_action_guide", map[string]any{"actionId": "example.read", "connectionName": "native-alias"}, true)
 	args := map[string]any{"actionId": "example.read", "connectionName": connection, "operationId": "intent_0001", "input": map[string]any{"value": "first"}}

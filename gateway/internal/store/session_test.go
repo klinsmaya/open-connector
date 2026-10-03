@@ -108,3 +108,39 @@ func TestLateMintCompletionRetainsCleanupAfterLeasedRevokeFailure(t *testing.T) 
 		t.Fatal("late mint revived session")
 	}
 }
+
+func TestFreshSessionRecomputesNarrowedActionIntersection(t *testing.T) {
+	s := database(t)
+	seed(t, s)
+	ctx := context.Background()
+	if _, err := s.Pool.Exec(ctx, `UPDATE auth_config SET approved_actions=ARRAY['github.get_current_user','github.list'] WHERE project_id='p' AND id='ac'; UPDATE agent_binding SET action_ids=ARRAY['github.get_current_user','github.list'] WHERE project_id='p' AND agent_id='agent'`); err != nil {
+		t.Fatal(err)
+	}
+	input := SessionInput{Project: "p", Subject: "owner", Agent: "agent", Actor: "actor", Task: "before-narrow", Toolkits: []string{"github"}, Connections: map[string][]string{"github": {"ca"}}}
+	before, err := s.PrepareSession(ctx, input, "before-bearer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var grants int
+	if err = s.Pool.QueryRow(ctx, `SELECT count(*) FROM session_grant WHERE session_id=$1`, before.ID).Scan(&grants); err != nil || grants != 2 {
+		t.Fatalf("initial grants %d %v", grants, err)
+	}
+	if _, err = s.Pool.Exec(ctx, `UPDATE auth_config SET approved_actions=ARRAY['github.get_current_user'] WHERE project_id='p' AND id='ac'`); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.SyncPolicy(ctx, PolicyInput{Project: "p", Owner: "owner", Agent: "agent", Revision: 2, Connections: input.Connections}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Admit(ctx, "s", "session-fixture"); err == nil {
+		t.Fatal("old policy admitted")
+	}
+	input.Task = "after-narrow"
+	after, err := s.PrepareSession(ctx, input, "after-bearer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var actions []string
+	if err = s.Pool.QueryRow(ctx, `SELECT array_agg(action_id ORDER BY action_id) FROM session_grant WHERE session_id=$1`, after.ID).Scan(&actions); err != nil || len(actions) != 1 || actions[0] != "github.get_current_user" {
+		t.Fatalf("fresh intersection %v %v", actions, err)
+	}
+}

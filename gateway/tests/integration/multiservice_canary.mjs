@@ -261,6 +261,12 @@ try {
   assert.equal(issued.status, 200, "fresh scoped session issuance");
   const session = JSON.parse(issued.body).mcp;
   const bearer = session.headers.Authorization.slice(7);
+  assert.equal((await request("http://127.0.0.1:8080/api/v3.1/toolkits", "GET", { "x-api-key": bearer })).status, 401);
+  assert.equal(
+    (await request(nativeOrigin + "/v1/connections", "GET", { Authorization: "Bearer " + bearer })).status,
+    401,
+  );
+  console.log("PASS actual session credential cannot enter gateway control or native administration");
   const execute = (operationId, value) =>
     mcp(session.url, bearer, "tools/call", {
       name: "execute_action",
@@ -270,10 +276,13 @@ try {
     const result = await execute("isolated-canary-read", "canary-read");
     assert.equal(result.status, 200);
     assert.ok(result.body.includes("canary-read"));
+    if (i === 0)
+      await database.query("UPDATE execution SET created_at=now()-interval '90 days' WHERE state='SUCCEEDED'");
   }
   assert.equal((await recovery()).executions, 1);
   for (let i = 0; i < 2; i++) {
     await execute("isolated-canary-lost", "__lose_response__");
+    if (i === 0) await database.query("UPDATE execution SET created_at=now()-interval '90 days' WHERE state='UNKNOWN'");
   }
   assert.equal((await recovery()).executions, 2);
   assert.equal((await database.query("SELECT count(*)::int AS n FROM execution WHERE state='UNKNOWN'")).rows[0].n, 1);
@@ -282,6 +291,8 @@ try {
   );
 
   await stop(multica);
+  assert.equal((await mcp(session.url, bearer, "tools/list", {})).status, 401);
+  console.log("PASS unavailable live authority denies existing session; 90-day ledger records do not redispatch");
   const rollback = { ...mcEnv, COMPOSIO_BACKEND: "official", COMPOSIO_API_KEY: "", FF_COMPOSIO_MCP_APPS: "false" };
   multica = start("/multica", [], rollback);
   multica.stdout.resume();

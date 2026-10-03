@@ -1,0 +1,88 @@
+// Copied as an external test into each pinned SDK revision by the offline runner.
+package composio_test
+
+import (
+	"context"
+	"encoding/json"
+	sdk "github.com/multica-ai/multica/server/pkg/composio"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+)
+
+func TestOfficialBaselineWireProbe(t *testing.T) {
+	type exchange struct {
+		Method, URI string
+		Headers     http.Header
+		Body        any
+	}
+	var captured []exchange
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		var body any
+		if len(raw) > 0 {
+			if e := json.Unmarshal(raw, &body); e != nil {
+				t.Error(e)
+			}
+		}
+		for _, name := range []string{"Authorization", "X-Connector-Subject", "X-Composio-Authority"} {
+			if r.Header.Get(name) != "" {
+				t.Errorf("private header leaked to official mode: %s", name)
+			}
+		}
+		captured = append(captured, exchange{r.Method, r.URL.RequestURI(), r.Header.Clone(), body})
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v3.1/connected_accounts/link":
+			io.WriteString(w, `{"connected_account_id":"ca_fixture","redirect_url":"https://offline.invalid/authorize"}`)
+		case "/api/v3.1/tool_router/session":
+			io.WriteString(w, `{"session_id":"s_fixture","mcp":{"type":"http","url":"https://offline.invalid/mcp"}}`)
+		default:
+			io.WriteString(w, `{"items":[],"success":true}`)
+		}
+	}))
+	defer server.Close()
+	client, e := sdk.NewClient(sdk.Options{APIKey: "official-fixture-key", BaseURL: server.URL + "/api/v3.1", HTTPClient: server.Client()})
+	if e != nil {
+		t.Fatal(e)
+	}
+	ctx := context.Background()
+	if _, e = client.ListToolkits(ctx, sdk.ListToolkitsRequest{}); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = client.ListAuthConfigs(ctx, sdk.ListAuthConfigsRequest{ToolkitSlugs: []string{"example", "other"}}); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = client.CreateLink(ctx, sdk.CreateLinkRequest{AuthConfigID: "ac_fixture", UserID: "owner", CallbackURL: "https://offline.invalid/callback", Alias: "fixture"}); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = client.ListConnectedAccounts(ctx, sdk.ListConnectedAccountsRequest{UserIDs: []string{"owner", "other"}, ToolkitSlugs: []string{"example"}, AuthConfigIDs: []string{"ac_fixture"}, ConnectedAccountIDs: []string{"ca_fixture"}}); e != nil {
+		t.Fatal(e)
+	}
+	session, e := client.CreateSession(ctx, sdk.CreateSessionRequest{UserID: "owner", Toolkits: map[string]any{"enable": []string{"example"}}, ConnectedAccounts: map[string]any{"example": []string{"ca_fixture"}}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if session.SessionID != "s_fixture" || session.MCP.URL != "https://offline.invalid/mcp" {
+		t.Fatal("session response drift")
+	}
+	if e = client.RevokeConnection(ctx, "ca_fixture"); e != nil {
+		t.Fatal(e)
+	}
+	if e = client.DeleteConnectedAccount(ctx, "ca_fixture"); e != nil {
+		t.Fatal(e)
+	}
+	if len(captured) != 7 {
+		t.Fatalf("expected 7 requests, got %d", len(captured))
+	}
+	result := map[string]any{"requests": captured, "mcp_headers": client.MCPAuthHeaders()}
+	raw, e := json.MarshalIndent(result, "", "  ")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = os.WriteFile(os.Getenv("OFFICIAL_WIRE_OUTPUT"), append(raw, '\n'), 0600); e != nil {
+		t.Fatal(e)
+	}
+}
