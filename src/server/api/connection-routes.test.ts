@@ -483,6 +483,18 @@ describe("trusted subject request namespaces", () => {
     ).toBe("initiated");
   });
 
+  it("keeps compatibility capability discovery admin-only with runtime authentication configured", async () => {
+    const { app } = await setup(undefined, {
+      adminToken: "admin",
+      runtimeToken: "runtime",
+      trustedSubjectRequests: true,
+    });
+    const path = "/v1/compatibility-capabilities";
+    expect((await app.request(path, { headers: { authorization: "Bearer admin" } })).status).toBe(200);
+    expect((await app.request(path, { headers: { authorization: "Bearer runtime" } })).status).toBe(401);
+    expect((await app.request(path)).status).toBe(401);
+  });
+
   it("does not accept subject context from runtime tokens, cookies, or disabled deployments", async () => {
     const { app, call } = await setup(undefined, {
       adminToken: "admin",
