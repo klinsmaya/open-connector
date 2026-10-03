@@ -1,6 +1,7 @@
 import type { ConnectionService } from "../../connection-service.ts";
 import type { OAuthFlowService } from "../../oauth/oauth-flow-service.ts";
 import type { SaasOAuthService } from "../../saas/saas-oauth-service.ts";
+import type { Context } from "hono";
 import type { z } from "zod";
 
 import { Hono } from "hono";
@@ -18,16 +19,50 @@ import {
 } from "./runtime-api.ts";
 
 interface ConnectionRoutesOptions {
+  trustedSubjectRequests?: boolean;
   connections: ConnectionService;
   oauthFlow: OAuthFlowService;
   saasOAuth?: SaasOAuthService;
 }
 
 /** Personal connection management. Authentication runs in the parent app. */
-export function createConnectionRoutes({ connections, oauthFlow, saasOAuth }: ConnectionRoutesOptions): Hono {
+export function createConnectionRoutes({
+  connections,
+  oauthFlow,
+  saasOAuth,
+  trustedSubjectRequests,
+}: ConnectionRoutesOptions): Hono {
   const app = new Hono();
-  // The local runtime has one administrator principal, including its bearer and browser sessions.
-  const owner = "local-admin";
+  // This is only an OAuth transaction namespace; connection ownership remains
+  // the trusted gateway's responsibility and execution still needs exact grants.
+  const owner = (context: Context): string => {
+    const subject = context.req.header("X-Connector-Subject");
+    return trustedSubjectRequests && subject !== undefined ? `trusted-subject:${subject}` : "local-admin";
+  };
+  app.use("*", async (context, next) => {
+    const subject = context.req.header("X-Connector-Subject");
+    if (subject !== undefined) {
+      if (!trustedSubjectRequests)
+        return writeRuntimeFailure(context, {
+          status: 400,
+          errorCode: "unsupported_subject_context",
+          message: "Subject-scoped requests are not enabled.",
+        });
+      if (!hasAdminBearer(context))
+        return writeRuntimeFailure(context, {
+          status: 403,
+          errorCode: "forbidden",
+          message: "Subject context requires an administrator bearer.",
+        });
+      if (!/^[A-Za-z0-9_.:-]{1,128}$/.test(subject))
+        return writeRuntimeFailure(context, {
+          status: 400,
+          errorCode: "invalid_subject",
+          message: "Invalid subject context.",
+        });
+    }
+    await next();
+  });
   app.onError((error, context) => {
     if (error instanceof SaasError) {
       if (error.retryAfter) context.header("Retry-After", error.retryAfter);
@@ -63,8 +98,8 @@ export function createConnectionRoutes({ connections, oauthFlow, saasOAuth }: Co
     const id = context.req.param("connectionRequestId");
     const request =
       saasOAuth && hasAdminBearer(context)
-        ? await saasOAuth.sync(id, owner, context.req.raw.signal)
-        : await oauthFlow.getConnectionRequest(id, owner);
+        ? await saasOAuth.sync(id, owner(context), context.req.raw.signal)
+        : await oauthFlow.getConnectionRequest(id, owner(context));
     if (!request)
       return writeRuntimeFailure(context, {
         status: 404,
@@ -84,7 +119,7 @@ export function createConnectionRoutes({ connections, oauthFlow, saasOAuth }: Co
         await oauthFlow.startConnectionRequest({
           ...input,
           service: target?.service ?? context.req.param("service")!,
-          owner,
+          owner: owner(context),
           signal: context.req.raw.signal,
           target,
         }),

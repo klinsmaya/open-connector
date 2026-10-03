@@ -43,7 +43,7 @@ afterEach(() => {
 
 async function setup(
   exchangeCode?: ProviderOAuthRuntime["exchangeCode"],
-  auth: { adminToken?: string; runtimeToken?: string } = {},
+  auth: { adminToken?: string; runtimeToken?: string; trustedSubjectRequests?: boolean } = {},
   definition: ProviderDefinition = provider,
   credentialValidators?: CredentialValidators,
 ) {
@@ -441,4 +441,90 @@ it("connects Slack using granted scopes from the nested user token response", as
   const connection = (await (await call(`/v1/connections/by-id/${result.appId}`)).json()).data;
   expect(connection.scopes).toEqual(["channels:read", "users:read"]);
   expect(fetcher).toHaveBeenCalledTimes(2);
+});
+
+describe("trusted subject request namespaces", () => {
+  it("keeps two subjects' pending authorizations independent and hides their polls", async () => {
+    const { app } = await setup(undefined, {
+      adminToken: "admin",
+      runtimeToken: "runtime",
+      trustedSubjectRequests: true,
+    });
+    const request = (path: string, subject: string, body?: object) =>
+      app.request(path, {
+        method: body === undefined ? "GET" : "POST",
+        headers: { authorization: "Bearer admin", "X-Connector-Subject": subject, "content-type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    const firstResponse = await request("/v1/connections/example/connect", "project-a:user-a", {});
+    const secondResponse = await request("/v1/connections/example/connect", "project-a:user-b", {});
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    const first = (await firstResponse.json()).data;
+    const second = (await secondResponse.json()).data;
+    expect(first.connectionRequestId).not.toBe(second.connectionRequestId);
+    const poll = `/v1/connection-requests/${first.connectionRequestId}`;
+    expect((await request(poll, "project-a:user-b")).status).toBe(404);
+    expect((await request(poll, "project-b:user-a")).status).toBe(404);
+    expect((await (await request(poll, "project-a:user-a")).json()).data.status).toBe("initiated");
+    const callback = await app.request(`/oauth/callback?state=${first.stateHandle}&code=code`);
+    expect(callback.status).toBe(200);
+    const connected = (await (await request(poll, "project-a:user-a")).json()).data;
+    expect(connected.status).toBe("connected");
+    const reconnect = (
+      await (await request(`/v1/connections/by-id/${connected.appId}/connect`, "project-a:user-a", {})).json()
+    ).data;
+    const reconnectPoll = `/v1/connection-requests/${reconnect.connectionRequestId}`;
+    expect((await request(reconnectPoll, "project-a:user-b")).status).toBe(404);
+    expect((await (await request(reconnectPoll, "project-a:user-a")).json()).data.status).toBe("initiated");
+    expect(
+      (await (await request(`/v1/connection-requests/${second.connectionRequestId}`, "project-a:user-b")).json()).data
+        .status,
+    ).toBe("initiated");
+  });
+
+  it("does not accept subject context from runtime tokens, cookies, or disabled deployments", async () => {
+    const { app, call } = await setup(undefined, {
+      adminToken: "admin",
+      runtimeToken: "runtime",
+      trustedSubjectRequests: true,
+    });
+    const path = "/v1/connections/example/connect";
+    const runtime = await app.request(path, {
+      method: "POST",
+      headers: { authorization: "Bearer runtime", "X-Connector-Subject": "forged", "content-type": "application/json" },
+      body: "{}",
+    });
+    expect([401, 403]).toContain(runtime.status);
+    const admin = await call("/api/providers");
+    const cookie = admin.headers.get("set-cookie")!.split(";")[0];
+    const browser = await app.request(path, {
+      method: "POST",
+      headers: { cookie, "X-Connector-Subject": "forged", "content-type": "application/json" },
+      body: "{}",
+    });
+    expect(browser.status).toBe(403);
+    const invalid = await app.request(path, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer admin",
+        "X-Connector-Subject": "bad subject",
+        "content-type": "application/json",
+      },
+      body: "{}",
+    });
+    expect(invalid.status).toBe(400);
+    const legacy = await setup(undefined, { adminToken: "admin" });
+    const disabled = await legacy.app.request(path, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer admin",
+        "X-Connector-Subject": "project:user",
+        "content-type": "application/json",
+      },
+      body: "{}",
+    });
+    expect(disabled.status).toBe(400);
+    expect((await legacy.call(path, {})).status).toBe(200);
+  });
 });

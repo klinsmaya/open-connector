@@ -8,9 +8,9 @@ and integration source is byte-identical to the research baseline.
 
 | Boundary                     | Contract                                                                                                       | Gateway status  |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------- |
-| GET toolkits                 | items/next_cursor/total_items; category, limit, cursor, sort_by                                                | NOT_IMPLEMENTED |
-| GET toolkit                  | stable slug descriptor                                                                                         | NOT_IMPLEMENTED |
-| GET auth_configs             | single comma-separated toolkit_slug, boolean is_composio_managed, show_disabled                                | NOT_IMPLEMENTED |
+| GET toolkits                 | items/next_cursor/total_items; category, limit, cursor, sort_by                                                | SDK_GATEWAY_PG_TESTED |
+| GET toolkit                  | stable slug descriptor                                                                                         | SDK_GATEWAY_PG_TESTED |
+| GET auth_configs             | single comma-separated toolkit_slug, boolean is_composio_managed, show_disabled                                | SDK_GATEWAY_PG_TESTED |
 | POST connected_accounts/link | user_id, auth_config_id, callback_url; redirect_url, expiry, stable account ID                                 | NOT_IMPLEMENTED |
 | GET connected_accounts       | repeated user_ids/toolkit_slugs/auth_config_ids/connected_account_ids/statuses; intersection before pagination | NOT_IMPLEMENTED |
 | Account response             | id, user_id, auth_config_id, nested auth_config.id, toolkit.slug, uppercase status                             | NOT_IMPLEMENTED |
@@ -40,11 +40,13 @@ use the native HTTP Action endpoint and own operation identity.
 - Claim: `server/internal/handler/daemon.go` merges RuntimeMcpOverlay; its
   fallback cannot be used in compat mode.
 - OAuth ownership/state: integration `service.go` plus authenticated handler.
-- Native OAuth owner: OC `src/server/api/connection-routes.ts` currently
-  hardcodes local-admin. It is also mounted for runtime connection creation;
+- Native OAuth owner: OC `src/server/api/connection-routes.ts` originally
+  hardcoded local-admin. T05 adds an opt-in native subject namespace. It is
+  also mounted for runtime connection creation;
   any subject extension must require actual admin Bearer, never browser auth.
 - Native revoke: OC `src/connection-service.ts` currently deletes before
   best-effort remote revoke. A separate operation must retain ciphertext.
 
-No SDK fixture success promotes C01–C06 or the other acceptance entries to
-PASS. Those need the implemented gateway and negative authorization tests.
+SDK fixture success alone does not promote acceptance entries. T03 now has
+real SDK/gateway/PostgreSQL coverage for C01/C06; C02/C03/C04 remain partial.
+See docs/t03-evidence.md and docs/acceptance.md for scope and limitations.

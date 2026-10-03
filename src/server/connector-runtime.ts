@@ -75,6 +75,8 @@ export interface ConnectorRuntimeOptions {
   encryptionKey?: string;
   /** Bearer token required for management requests such as connections, OAuth clients and policies. Omit to leave them open. */
   adminToken?: string;
+  /** Allow an authenticated administrator bearer to namespace OAuth requests with X-Connector-Subject. */
+  trustedSubjectRequests?: boolean;
   /** Static bearer token for the /v1 and /mcp execution API. JWT verification and console-issued tokens are the alternatives. */
   runtimeToken?: string;
   /** Verify /v1 bearer tokens as JWTs against a JWKS endpoint. */
@@ -220,6 +222,7 @@ async function openRuntime(options: ConnectorRuntimeOptions): Promise<ConnectorR
       configuredOrigin: options.publicOriginConfigured === false ? undefined : publicOrigin,
       secretCodec,
       adminToken: options.adminToken,
+      trustedSubjectRequests: options.trustedSubjectRequests,
       runtimeToken: options.runtimeToken,
       verifyRuntimeJwt,
       actionPolicy: new ActionPolicyService(options.actionPolicy),

@@ -70,6 +70,7 @@ async function main(): Promise<void> {
     assets,
     encryptionKey: process.env.OOMOL_CONNECT_ENCRYPTION_KEY,
     adminToken: optionalEnv("OOMOL_CONNECT_ADMIN_TOKEN"),
+    trustedSubjectRequests: process.env.OOMOL_CONNECT_TRUSTED_SUBJECT_REQUESTS === "true",
     runtimeToken: optionalEnv("OOMOL_CONNECT_RUNTIME_TOKEN"),
     jwt: {
       jwksUri: process.env.OOMOL_CONNECT_JWKS_URI,

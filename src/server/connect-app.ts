@@ -37,6 +37,8 @@ export interface ConnectAppOptions {
   configuredOrigin?: string;
   secretCodec: ISecretCodec;
   adminToken?: string;
+  /** Allow an authenticated administrator bearer to namespace OAuth requests with X-Connector-Subject. */
+  trustedSubjectRequests?: boolean;
   runtimeToken?: string;
   allowedCustomOAuth?: string[];
   verifyRuntimeJwt?: RuntimeJwtVerifier;
@@ -132,6 +134,7 @@ export async function createConnectApp(options: ConnectAppOptions): Promise<Conn
       logger: options.logger,
     }),
     app: new ConnectServer({
+      trustedSubjectRequests: options.trustedSubjectRequests,
       providerHttpDispatch: options.providerHttpDispatch,
       catalog: options.catalog,
       publicOrigin: options.publicOrigin,

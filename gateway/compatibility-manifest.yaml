@@ -47,16 +47,16 @@ required_patches:
       status: not_implemented
   openconnector:
     - id: trusted_subject_scoped_oauth_requests
-      status: not_implemented
+      status: native_locally_tested
       fallback: serialized_provider_auth_development_only
     - id: non_destructive_remote_revocation
       status: not_implemented
       fallback: explicit_local_disconnect_not_strict_revoke
 
 planned_routes:
-  - { method: GET, path: /api/v3.1/toolkits, status: not_implemented }
-  - { method: GET, path: "/api/v3.1/toolkits/{slug}", status: not_implemented }
-  - { method: GET, path: /api/v3.1/auth_configs, status: not_implemented }
+  - { method: GET, path: /api/v3.1/toolkits, status: sdk_gateway_postgres_tested }
+  - { method: GET, path: "/api/v3.1/toolkits/{slug}", status: sdk_gateway_postgres_tested }
+  - { method: GET, path: /api/v3.1/auth_configs, status: sdk_gateway_postgres_tested }
   - { method: POST, path: /api/v3.1/connected_accounts/link, status: not_implemented }
   - { method: GET, path: /api/v3.1/connected_accounts, status: not_implemented }
   - { method: GET, path: "/api/v3.1/connected_accounts/{id}", status: not_implemented }
@@ -68,7 +68,7 @@ planned_routes:
 compatibility_extensions:
   mcp_response_headers: proposed
   compat_context: proposed
-  trusted_openconnector_subject_header: proposed
+  trusted_openconnector_subject_header: native_locally_tested
   non_destructive_revoke_endpoint: proposed
   full_mcp_oauth_discovery: out_of_scope
 
@@ -102,16 +102,16 @@ suggested_defaults_not_measured:
   multica_state_ttl_compat_mode: 15m
 
 validation:
-  offline_contract: not_run
+  offline_contract: partial_pass
   actual_openconnector_integration: not_run
   actual_multica_agent_e2e: not_run
   live_provider_oauth: not_run
   remote_revocation: not_run
-  security_review: not_run
+  security_review: partial_independent_review
   upgrade_and_rollback: not_run
   backup_restore: not_run
-  tested_at: null
-  evidence_path: null
+  tested_at: "2026-10-03"
+  evidence_path: docs/
 
 development_workspace:
   gateway_path: open-connector/gateway
