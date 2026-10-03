@@ -1,16 +1,19 @@
 // Real OpenConnector HTTP runtime with an offline OAuth exchange fixture.
 import { serve } from "@hono/node-server";
+import { DatabaseSync } from "node:sqlite";
 import { createCatalogStore } from "../../../src/catalog-store.ts";
 import { s } from "../../../src/core/json-schema.ts";
 import { defineProviderAction } from "../../../src/core/provider-definition.ts";
 import { ProviderLoader } from "../../../src/providers/provider-loader.ts";
 import { createConnectApp } from "../../../src/server/connect-app.ts";
 import { TransitFileService } from "../../../src/server/files/transit-files.ts";
-import { PlainTextSecretCodec } from "../../../src/server/secrets/secret-codec-core.ts";
+import { AesGcmSecretCodec } from "../../../src/server/secrets/secret-codec.ts";
 import { SqliteRuntimeDatabase } from "../../../src/server/storage/sqlite/runtime-store.ts";
 
 let executions = 0;
-const database = new SqliteRuntimeDatabase(":memory:");
+const codec = new AesGcmSecretCodec("native-encryption-fixture");
+const fixturePath = process.env.OC_NATIVE_FIXTURE_DB;
+const database = new SqliteRuntimeDatabase(fixturePath ?? ":memory:", { secretCodec: codec });
 await database.oauthClientConfigStore.set({
   service: "example",
   clientId: "fixture",
@@ -76,11 +79,38 @@ const { app } = await createConnectApp({
     maxBytes: 1024,
   }),
   publicOrigin: origin,
-  secretCodec: new PlainTextSecretCodec(),
+  secretCodec: codec,
   adminToken: "native-admin-fixture",
   trustedSubjectRequests: true,
 });
-dispatch = app.fetch;
+if (fixturePath)
+  app.get("/__fixture/recovery", async (context) => {
+    if (context.req.header("Authorization") !== "Bearer native-admin-fixture")
+      return context.json({ error: "forbidden" }, 403);
+    const raw = new DatabaseSync(fixturePath, { readOnly: true });
+    try {
+      const rows = raw.prepare("select value from connections where source='local'").all();
+      let retained = false;
+      for (const row of rows) {
+        const encrypted = String(row.value);
+        const value = JSON.parse(await codec.decode(encrypted));
+        if (value.accessToken === "fixture-provider-secret" && !encrypted.includes("fixture-provider-secret"))
+          retained = true;
+      }
+      return context.json({ encryptedOrphanRetained: retained });
+    } finally {
+      raw.close();
+    }
+  });
+dispatch = async (request) => {
+  let loseResponse = false;
+  if (request.method === "POST" && new URL(request.url).pathname === "/v1/actions/example.read") {
+    const body = (await request.clone().json()) as { input?: { value?: string } };
+    loseResponse = body.input?.value === "__lose_response__";
+  }
+  const response = await app.fetch(request);
+  return loseResponse ? new Response(null, { status: 503 }) : response;
+};
 console.log(origin);
 process.on("SIGTERM", () => {
   server.close();

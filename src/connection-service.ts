@@ -1,4 +1,5 @@
 import type { CatalogStore, RuntimeProviderDefinition } from "./catalog-store.ts";
+import type { ConnectionSafetyStore, StrictRevocationState, StrictRevocationResult } from "./connection-revocation.ts";
 import type { ProviderHttpDispatchOptions } from "./core/provider-http-dispatch.ts";
 import type {
   ApiKeyAuthDefinition,
@@ -64,6 +65,7 @@ export interface ConnectWithoutAuthInput {
 }
 
 export interface ConnectionServiceOptions {
+  strictRevocationServices?: readonly string[];
   providerHttpDispatch?: ProviderHttpDispatchOptions;
   catalog: CatalogStore;
   oauthCredentials?: IOAuthCredentialRefresher;
@@ -97,6 +99,7 @@ export interface StoredSaasConnection {
 export type StoredConnection = StoredLocalConnection | StoredSaasConnection;
 
 export interface StoredLocalConnection {
+  revocationState?: StrictRevocationState;
   source?: "local";
   id: string;
   revision: string;
@@ -147,6 +150,7 @@ interface SaasExecutionConnection {
  * Storage contract for local provider connections.
  */
 export interface IConnectionStore {
+  safety?: ConnectionSafetyStore;
   get(service: string, connectionName: string): Promise<StoredConnection | undefined>;
   set(service: string, connectionName: string, credential: ResolvedCredential): Promise<StoredLocalConnection>;
   updateCredential(input: StoredLocalConnection, refresh?: boolean): Promise<boolean>;
@@ -183,6 +187,7 @@ type OAuthCredential = Extract<ResolvedCredential, { authType: "oauth2" }>;
  * run public actions without configuration.
  */
 export class ConnectionService {
+  private readonly strictRevocationServices: ReadonlySet<string>;
   private readonly providerHttpDispatch?: ProviderHttpDispatchOptions;
   private readonly catalog: CatalogStore;
   private readonly oauthCredentialRefreshes = new Map<string, Promise<OAuthCredential>>();
@@ -193,6 +198,7 @@ export class ConnectionService {
   private readonly marketplace?: MarketplaceService;
 
   constructor(input: ConnectionServiceOptions) {
+    this.strictRevocationServices = new Set(input.strictRevocationServices ?? []);
     this.providerHttpDispatch = input.providerHttpDispatch;
     this.catalog = input.catalog;
     this.oauthCredentials = input.oauthCredentials;
@@ -285,6 +291,8 @@ export class ConnectionService {
   ): Promise<ConnectionSummary | undefined> {
     const provider = this.getProvider(service);
     const stored = await this.selectStoredConnection(service, connectionName, connectionId);
+    if (stored?.source !== "saas" && stored?.revocationState)
+      throw new ConnectionError("connection_revoked", "Connection is isolated for revocation.");
     const name = stored?.connectionName ?? normalizeConnectionName(connectionName);
     const marketplace = connectionId
       ? undefined
@@ -309,6 +317,8 @@ export class ConnectionService {
   ): Promise<ExecutionConnection> {
     const provider = this.getProvider(service);
     const stored = await this.selectStoredConnection(service, connectionName, connectionId);
+    if (stored?.source !== "saas" && stored?.revocationState)
+      throw new ConnectionError("connection_revoked", "Connection is isolated for revocation.");
     const name = stored?.connectionName ?? normalizeConnectionName(connectionName);
     const marketplace = connectionId
       ? undefined
@@ -342,6 +352,8 @@ export class ConnectionService {
     const provider = this.getProvider(service);
     const name = normalizeConnectionName(connectionName);
     const stored = await this.store.get(service, name);
+    if (stored?.source !== "saas" && stored?.revocationState)
+      throw new ConnectionError("connection_revoked", "Connection is isolated for revocation.");
     if (stored?.source === "saas")
       throw new ConnectionError("unsupported_auth_type", "SaaS credentials are not available locally.");
     if (stored) {
@@ -529,7 +541,8 @@ export class ConnectionService {
     const credential = stored.credential;
     return {
       status:
-        credential.authType === "oauth2" && !credential.refreshToken && isOAuthCredentialExpired(credential)
+        stored.revocationState ||
+        (credential.authType === "oauth2" && !credential.refreshToken && isOAuthCredentialExpired(credential))
           ? "reauth_required"
           : "active",
       ...this.createConfiguredConnectionSummary(
@@ -578,11 +591,60 @@ export class ConnectionService {
     return { ...expected, credential };
   }
 
+  /** Keep unfinished provider operations and encrypted results across crashes. */
+  async beginOAuthOperation(service: string): Promise<string | undefined> {
+    return this.store.safety?.beginOAuth(service);
+  }
+  async saveOAuthRecovery(id: string | undefined, credential: ResolvedCredential): Promise<void> {
+    if (id) await this.store.safety?.saveOAuthRecovery(id, credential);
+  }
+  async finishOAuthOperation(id: string | undefined): Promise<void> {
+    if (id) await this.store.safety?.finishOAuth(id);
+  }
+
+  supportsSafeRevocation(): boolean {
+    return this.store.safety?.encrypted === true;
+  }
+
+  async revokePreservingCredential(id: string): Promise<StrictRevocationResult> {
+    const stored = await this.getStoredConnection(id);
+    if (
+      stored.source === "saas" ||
+      stored.credential.authType !== "oauth2" ||
+      !this.strictRevocationServices.has(stored.service) ||
+      !this.store.safety ||
+      !this.oauthCredentials?.revoke
+    )
+      return { connectionId: id, operationId: "", state: "UNSUPPORTED" };
+    const operation = await this.store.safety.beginRevocation(id, stored.revision, stored.service);
+    if (!operation.acquired) return operation;
+    let state: StrictRevocationState = "UNKNOWN";
+    try {
+      const outcome = await this.oauthCredentials.revoke(stored.service, stored.credential, {
+        requireMatchingClient: true,
+      });
+      state = outcome === "done" ? "REVOKED" : "UNSUPPORTED";
+    } catch {
+      /* Unknown provider outcomes never release the persistent barrier. */
+    }
+    await this.store.safety.finishRevocation(operation, state);
+    return { connectionId: id, operationId: operation.operationId, state };
+  }
+  async deleteRevokedConnection(id: string): Promise<void> {
+    if (!this.store.safety) throw new ConnectionError("unsupported_revocation", "Durable revocation is unavailable.");
+    await this.store.safety.deleteRevoked(id);
+  }
+
   async disconnect(
     service: string,
     connectionNameInput?: string,
     options: DisconnectOptions = {},
   ): Promise<(ConnectionSummary & { revoked: OAuthRevocationOutcome }) | DisconnectedConnectionSummary> {
+    if (this.strictRevocationServices.has(service))
+      throw new ConnectionError(
+        "strict_revocation_required",
+        "Use non-destructive revocation and confirmed cleanup for this provider.",
+      );
     const connectionName = normalizeConnectionName(connectionNameInput);
     // The credential is read before the delete and revoked after it: a delete the store
     // refuses (a row bound to active Trigger subscriptions) then ends nothing at the provider,
@@ -880,11 +942,13 @@ export class ConnectionService {
     refresher: IOAuthCredentialRefresher,
   ): Promise<OAuthCredential> {
     const { id, revision, service, connectionName } = connection;
+    const operation = await this.beginOAuthOperation(service);
     const nextCredential = await withProviderHttpDispatchResult(
       { operation: "oauth", service, connectionId: id, connectionName },
       () => refresher.refresh(service, credential),
       this.providerHttpDispatch,
     );
+    await this.saveOAuthRecovery(operation, nextCredential);
     const updated = await this.store.updateCredential(
       {
         id,
@@ -901,6 +965,7 @@ export class ConnectionService {
         `${service} connection changed while its OAuth credential was refreshing. Retry the action.`,
       );
     }
+    await this.finishOAuthOperation(operation);
     return nextCredential;
   }
 

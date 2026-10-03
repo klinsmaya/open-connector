@@ -71,6 +71,10 @@ async function main(): Promise<void> {
     encryptionKey: process.env.OOMOL_CONNECT_ENCRYPTION_KEY,
     adminToken: optionalEnv("OOMOL_CONNECT_ADMIN_TOKEN"),
     trustedSubjectRequests: process.env.OOMOL_CONNECT_TRUSTED_SUBJECT_REQUESTS === "true",
+    strictRevocationServices: (process.env.OOMOL_CONNECT_STRICT_REVOCATION_SERVICES ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
     runtimeToken: optionalEnv("OOMOL_CONNECT_RUNTIME_TOKEN"),
     jwt: {
       jwksUri: process.env.OOMOL_CONNECT_JWKS_URI,

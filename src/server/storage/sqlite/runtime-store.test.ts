@@ -60,6 +60,7 @@ describe("SqliteRuntimeDatabase", () => {
       "0015_saas_cleanup_runtime.sql",
       "0016_trigger_policy.sql",
       "0017_trigger_subscriptions.sql",
+      "0018_non_destructive_revocation.sql",
     ];
     expect(entries.filter((entry) => entry.message === "sqlite migration started")).toEqual(
       migrations.map((migration) => ({ fields: { migration }, message: "sqlite migration started" })),

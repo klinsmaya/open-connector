@@ -4,6 +4,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -52,6 +53,19 @@ func Handlers(authority Authority, connect *ConnectAPI) (http.Handler, http.Hand
 				}
 			}
 		}
+		if connect != nil {
+			parts := strings.Split(r.URL.Path, "/")
+			if len(parts) >= 5 && parts[1] == "api" && parts[2] == "v3.1" && parts[3] == "connected_accounts" && parts[4] != "" {
+				if len(parts) == 6 && parts[5] == "revoke" && r.Method == http.MethodPost {
+					connect.revokeConnection(w, r, project, parts[4])
+					return
+				}
+				if len(parts) == 5 && r.Method == http.MethodDelete {
+					connect.deleteConnection(w, r, project, parts[4])
+					return
+				}
+			}
+		}
 		if connect != nil && r.Method == http.MethodPost {
 			switch r.URL.Path {
 			case "/api/v3.1/tool_router/session":
@@ -90,11 +104,21 @@ func Handlers(authority Authority, connect *ConnectAPI) (http.Handler, http.Hand
 			failure(w, 404, "NOT_FOUND")
 			return
 		}
-		if _, err := authority.Admit(r.Context(), parts[2], token); err != nil {
+		admission, err := authority.Admit(r.Context(), parts[2], token)
+		if err != nil {
 			failure(w, 401, "SESSION_AUTH_REQUIRED")
 			return
 		}
 		if connect != nil {
+			if err := connect.DB.TakeExecutionRequest(r.Context(), admission.ProjectID, admission.SessionID); err != nil {
+				if errors.Is(err, store.ErrDenied) {
+					w.Header().Set("Retry-After", "60")
+					failure(w, 429, "SESSION_REQUEST_BUDGET_EXHAUSTED")
+				} else {
+					failure(w, 503, "AUTHORITY_UNAVAILABLE")
+				}
+				return
+			}
 			(&mcpserver.API{DB: connect.DB, Vault: connect.Vault, Runtimes: connect.Runtimes}).Serve(w, r, parts[2], token)
 			return
 		}
@@ -104,7 +128,15 @@ func Handlers(authority Authority, connect *ConnectAPI) (http.Handler, http.Hand
 }
 
 func bounded(next http.Handler) http.Handler {
+	slots := make(chan struct{}, 64)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case slots <- struct{}{}:
+			defer func() { <-slots }()
+		default:
+			failure(w, 429, "CONCURRENCY_LIMIT")
+			return
+		}
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)

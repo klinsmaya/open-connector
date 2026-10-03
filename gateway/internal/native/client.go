@@ -118,6 +118,12 @@ func (c *Client) do(ctx context.Context, method, path, subject string, input, ou
 	if res.StatusCode == http.StatusNotFound {
 		return ErrNotFound
 	}
+	if res.StatusCode == 501 {
+		return ErrUnsupported
+	}
+	if res.StatusCode == 409 {
+		return ErrBlocked
+	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		return ErrUpstream
 	}

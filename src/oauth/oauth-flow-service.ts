@@ -279,6 +279,7 @@ export class OAuthFlowService {
     }
 
     try {
+      const operation = await this.connections.beginOAuthOperation(pending.service);
       const auth = this.clientConfigs.getOAuthDefinition(pending.service);
       const config = pending.clientConfig ?? (await this.clientConfigs.getConfig(pending.service));
       if (!config) {
@@ -357,6 +358,7 @@ export class OAuthFlowService {
         },
       };
 
+      await this.connections.saveOAuthRecovery(operation, oauthCredential);
       if (request) {
         const credential = await this.connections.prepareOAuthCredential(
           pending.service,
@@ -389,6 +391,7 @@ export class OAuthFlowService {
           input.signal,
         );
       }
+      await this.connections.finishOAuthOperation(operation);
       return {
         service: pending.service,
         connected: true,

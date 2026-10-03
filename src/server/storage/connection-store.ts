@@ -5,21 +5,27 @@ import type { RequestTransaction } from "./connection-request-store.ts";
 import type { RuntimeRow } from "./runtime-sql.ts";
 
 import { HttpRequestError } from "../api/http-utils.ts";
+import { SqlConnectionSafetyStore } from "./connection-safety-store.ts";
 import { queueSaasConnections, readSaasConnection } from "./saas-project-store.ts";
 
 /** Connection writes share the request transaction so replacing/deleting remote references cannot lose cleanup work. */
 export class SqlConnectionStore implements IConnectionStore {
+  readonly safety: SqlConnectionSafetyStore;
   private readonly transaction: RequestTransaction;
   private readonly codec: ISecretCodec;
 
   constructor(transaction: RequestTransaction, codec: ISecretCodec) {
     this.transaction = transaction;
     this.codec = codec;
+    this.safety = new SqlConnectionSafetyStore(transaction, codec);
   }
 
   private async read(row: RuntimeRow): Promise<StoredConnection> {
     if (row.source === "saas") return readSaasConnection(row, this.codec);
     return {
+      revocationState: (row.revocation_state ?? undefined) as
+        | import("../../connection-revocation.ts").StrictRevocationState
+        | undefined,
       id: row.id as string,
       revision: row.revision as string,
       service: row.service as string,
@@ -31,7 +37,7 @@ export class SqlConnectionStore implements IConnectionStore {
   async get(service: string, connectionName: string): Promise<StoredConnection | undefined> {
     const [[row]] = await this.transaction([
       {
-        sql: "select * from connections where service = ? and connection_name = ?",
+        sql: "select connections.*, (select state from provider_revocation_barriers where service=connections.service) as revocation_state from connections where service = ? and connection_name = ?",
         values: [service, connectionName],
       },
     ]);
@@ -40,7 +46,10 @@ export class SqlConnectionStore implements IConnectionStore {
 
   async list(): Promise<StoredConnection[]> {
     const [rows] = await this.transaction([
-      { sql: "select * from connections order by service, connection_name", values: [] },
+      {
+        sql: "select connections.*, (select state from provider_revocation_barriers where service=connections.service) as revocation_state from connections order by service, connection_name",
+        values: [],
+      },
     ]);
     return Promise.all(rows.map((row) => this.read(row)));
   }

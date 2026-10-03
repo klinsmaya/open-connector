@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"github.com/klinsmaya/open-connector/gateway/internal/credentials"
 	"testing"
 	"time"
 )
@@ -20,7 +21,7 @@ func TestConnectTicketOwnershipAndConsumption(t *testing.T) {
 			for _, sql := range []string{
 				`INSERT INTO auth_config(project_id,id,toolkit,display_name,runtime_id,auth_type,enabled,approved_actions) VALUES('p','other-ac','slack','Slack','runtime','OAUTH2',true,ARRAY['slack.read'])`,
 				`INSERT INTO connection(project_id,id,subject_id,auth_config_id,toolkit,runtime_id,native_id,state) VALUES('p','other-ca','owner','other-ac','slack','runtime','other-native','ACTIVE')`,
-				`INSERT INTO session SELECT project_id,'unrelated',subject_id,agent_id,actor_id,task_id,grant_generation,decode(repeat('ab',32),'hex'),state,expires_at,issued_at,'other-token',runtime_ciphertext,runtime_id,native_token_name FROM session WHERE id='s'`,
+				`INSERT INTO session SELECT project_id,'unrelated',subject_id,agent_id,actor_id,task_id,grant_generation,decode(repeat('ab',32),'hex'),state,expires_at,issued_at,'other-token',runtime_ciphertext,runtime_id,native_token_name,request_window,request_count FROM session WHERE id='s'`,
 				`INSERT INTO session_grant VALUES('p','unrelated','other-ca',1,'slack.read')`,
 			} {
 				if _, err := db.Pool.Exec(ctx, sql); err != nil {
@@ -125,5 +126,50 @@ func TestConnectRejectsHiddenActionConfiguration(t *testing.T) {
 		if _, err := db.BeginConnect(ctx, "p", "owner", "ac", "https://multica.example/api/integrations/composio/callback?state=s", "https://multica.example", "nonce"); err == nil {
 			t.Fatalf("hidden config accepted: %q", actions)
 		}
+	}
+}
+
+func TestFailedAndLateCallbacksNeverReactivate(t *testing.T) {
+	for _, kind := range []string{"FAILED", "EXPIRED", "SUPERSEDED", "QUARANTINED", "expired-link", "expired-ticket", "revoked"} {
+		t.Run(kind, func(t *testing.T) {
+			db := database(t)
+			seed(t, db)
+			ctx := context.Background()
+			if _, err := db.Pool.Exec(ctx, `UPDATE project SET callback_origins=ARRAY['https://multica.example']`); err != nil {
+				t.Fatal(err)
+			}
+			phase := kind
+			if kind == "expired-link" || kind == "expired-ticket" {
+				phase = "VERIFYING"
+			}
+			if kind == "revoked" {
+				phase = "ACTIVE"
+			}
+			if _, err := db.Pool.Exec(ctx, `INSERT INTO connect_transaction(project_id,id,subject_id,auth_config_id,callback_url,callback_origin,nonce_digest,phase,expires_at,ticket_digest,ticket_expires_at,native_connection_id) VALUES('p','late','owner','ac','https://multica.example/callback','https://multica.example',$1,$2,now()+interval '1 hour',$1,now()+interval '1 minute','late-native')`, credentials.Digest("late-ticket"), phase); err != nil {
+				t.Fatal(err)
+			}
+			if kind == "expired-link" {
+				if _, err := db.Pool.Exec(ctx, `UPDATE connect_transaction SET expires_at=now()-interval '1 second' WHERE id='late'`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if kind == "expired-ticket" {
+				if _, err := db.Pool.Exec(ctx, `UPDATE connect_transaction SET ticket_expires_at=now()-interval '1 second' WHERE id='late'`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if kind == "revoked" {
+				if _, err := db.Pool.Exec(ctx, `INSERT INTO connection(project_id,id,subject_id,auth_config_id,toolkit,runtime_id,native_id,state) VALUES('p','late','owner','ac','github','runtime','late-native','REVOKED')`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, _, err := db.CompleteConnect(ctx, "p", "late-ticket", "owner"); err == nil {
+				t.Fatal("late callback accepted")
+			}
+			var active int
+			if err := db.Pool.QueryRow(ctx, `SELECT count(*) FROM connection WHERE id='late' AND state='ACTIVE'`).Scan(&active); err != nil || active != 0 {
+				t.Fatal("failed or late callback activated connection")
+			}
+		})
 	}
 }

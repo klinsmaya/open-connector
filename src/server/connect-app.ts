@@ -39,6 +39,7 @@ export interface ConnectAppOptions {
   adminToken?: string;
   /** Allow an authenticated administrator bearer to namespace OAuth requests with X-Connector-Subject. */
   trustedSubjectRequests?: boolean;
+  strictRevocationServices?: readonly string[];
   runtimeToken?: string;
   allowedCustomOAuth?: string[];
   verifyRuntimeJwt?: RuntimeJwtVerifier;
@@ -90,6 +91,7 @@ export async function createConnectApp(options: ConnectAppOptions): Promise<Conn
     isCustomClientConfigAvailable: (service) => options.secretCodec.encrypted && isCustomClientConfigAllowed(service),
   });
   const connections = new ConnectionService({
+    strictRevocationServices: options.strictRevocationServices,
     providerHttpDispatch: options.providerHttpDispatch,
     catalog: options.catalog,
     oauthCredentials: new OAuthCredentialRefreshService(oauthClientConfigs, options.providerLoader),

@@ -128,6 +128,7 @@ export async function preloadOptionalServerModules(): Promise<void> {
 export interface IConnectServerOptions {
   /** Allow an authenticated administrator bearer to namespace OAuth requests with X-Connector-Subject. */
   trustedSubjectRequests?: boolean;
+  strictRevocationServices?: readonly string[];
   providerHttpDispatch?: ProviderHttpDispatchOptions;
   catalog: CatalogStore;
   /** Public origin of this runtime, used for the HTTP request examples in Action guides. */

@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +29,7 @@ func TestRealSDKGatewayPostgresNativeOAuthIdentityGate(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			cmd := exec.CommandContext(ctx, "node", "native_runtime.ts")
+			cmd.Env = append(os.Environ(), "OC_NATIVE_FIXTURE_DB="+filepath.Join(t.TempDir(), "native.sqlite"))
 			stdout, err := cmd.StdoutPipe()
 			if err != nil {
 				t.Fatal(err)
@@ -190,6 +193,22 @@ func TestRealSDKGatewayPostgresNativeOAuthIdentityGate(t *testing.T) {
 			hidden, listErr := client.ListConnectedAccounts(ctx, sdk.ListConnectedAccountsRequest{UserIDs: []string{"another-user"}, ConnectedAccountIDs: []string{link.ConnectedAccountID}})
 			if listErr != nil || len(hidden.Items) != 0 {
 				t.Fatal("account filters did not intersect")
+			}
+			if mismatched {
+				request, _ := http.NewRequestWithContext(ctx, "GET", nativeURL+"/__fixture/recovery", nil)
+				request.Header.Set("Authorization", "Bearer native-admin-fixture")
+				res, e := browser.Do(request)
+				if e != nil {
+					t.Fatal(e)
+				}
+				var report struct {
+					Retained bool `json:"encryptedOrphanRetained"`
+				}
+				e = json.NewDecoder(res.Body).Decode(&report)
+				res.Body.Close()
+				if e != nil || res.StatusCode != 200 || !report.Retained {
+					t.Fatal("mismatched browser lost encrypted native OAuth recovery")
+				}
 			}
 			if !mismatched {
 

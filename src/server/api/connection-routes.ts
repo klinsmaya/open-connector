@@ -82,6 +82,20 @@ export function createConnectionRoutes({
     }
     throw error;
   });
+  app.get("/compatibility-capabilities", (context) => {
+    if (!hasAdminBearer(context))
+      return writeRuntimeFailure(context, {
+        status: 403,
+        errorCode: "forbidden",
+        message: "Administrator bearer required.",
+      });
+    return writeRuntimeSuccess(context, {
+      profile: "multica-core-v1",
+      securityRevision: 2,
+      trustedSubjectRequests: trustedSubjectRequests === true,
+      nonDestructiveRevocation: connections.supportsSafeRevocation(),
+    });
+  });
   app.get("/connections", async (context) => {
     const { connectionStatusInput } = await import("./connection-input.ts");
     const status = parseBody(connectionStatusInput, context.req.query("status"));
@@ -93,6 +107,32 @@ export function createConnectionRoutes({
       context,
       serializeManagedConnection(await connections.getManagedConnection(context.req.param("appId"))),
     );
+  });
+  app.post("/connections/by-id/:appId/revoke", async (context) => {
+    if (!hasAdminBearer(context))
+      return writeRuntimeFailure(context, {
+        status: 403,
+        errorCode: "forbidden",
+        message: "Administrator bearer required.",
+      });
+    const result = await connections.revokePreservingCredential(context.req.param("appId"));
+    if (result.state !== "REVOKED")
+      return writeRuntimeFailure(context, {
+        status: result.state === "UNSUPPORTED" ? 501 : 409,
+        errorCode: `revocation_${result.state.toLowerCase()}`,
+        message: "Remote revocation is not confirmed; recovery material is retained.",
+      });
+    return writeRuntimeSuccess(context, result);
+  });
+  app.delete("/connections/by-id/:appId/revoked", async (context) => {
+    if (!hasAdminBearer(context))
+      return writeRuntimeFailure(context, {
+        status: 403,
+        errorCode: "forbidden",
+        message: "Administrator bearer required.",
+      });
+    await connections.deleteRevokedConnection(context.req.param("appId"));
+    return writeRuntimeSuccess(context, { deleted: true });
   });
   app.get("/connection-requests/:connectionRequestId", async (context) => {
     const id = context.req.param("connectionRequestId");

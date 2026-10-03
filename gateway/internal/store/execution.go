@@ -51,6 +51,9 @@ func (s *Store) ReserveExecution(ctx context.Context, a Admission, id string, g 
 		return ExecutionResult{}, err
 	}
 	if tag.RowsAffected() == 1 {
+		if _, err = tx.Exec(ctx, `INSERT INTO audit_event(project_id,subject_id,actor_id,resource_id,event,result) VALUES($1,$2,$3,$4,'ACTION_DISPATCH','DISPATCHED')`, a.ProjectID, a.SubjectID, a.ActorID, id); err != nil {
+			return ExecutionResult{}, err
+		}
 		return ExecutionResult{Dispatch: true, State: "DISPATCHED"}, tx.Commit(ctx)
 	}
 	var result ExecutionResult
@@ -67,7 +70,7 @@ func (s *Store) FinishExecution(ctx context.Context, project, id, nativeID, stat
 	if state != "SUCCEEDED" && state != "UNKNOWN" {
 		return ErrDenied
 	}
-	tag, err := s.Pool.Exec(ctx, `UPDATE execution SET state=$3,native_execution_id=nullif($4,''),result=$5 WHERE project_id=$1 AND id=$2 AND state='DISPATCHED'`, project, id, state, nativeID, []byte(result))
+	tag, err := s.Pool.Exec(ctx, `WITH completed AS(UPDATE execution SET state=$3,native_execution_id=nullif($4,''),result=$5 WHERE project_id=$1 AND id=$2 AND state='DISPATCHED' RETURNING project_id,id,session_id) INSERT INTO audit_event(project_id,subject_id,actor_id,resource_id,event,result) SELECT c.project_id,s.subject_id,s.actor_id,c.id,'ACTION_OUTCOME',$3 FROM completed c JOIN session s ON s.project_id=c.project_id AND s.id=c.session_id`, project, id, state, nativeID, []byte(result))
 	if err != nil {
 		return err
 	}

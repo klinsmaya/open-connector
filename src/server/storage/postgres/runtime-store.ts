@@ -155,9 +155,21 @@ export class PostgresRuntimeDatabase implements RuntimeDatabase {
     await runInTransaction(this.pool, async (client) => {
       await client.query("select pg_advisory_xact_lock(1326382671, 2)");
       await client.query(
-        "lock table connections, oauth_client_configs, oauth_states, connection_requests, idempotency_records, managed_project, oauth_sources, saas_cleanup, instance_identity, trigger_subscriptions in access exclusive mode",
+        "lock table connections, oauth_client_configs, oauth_states, connection_requests, idempotency_records, managed_project, oauth_sources, saas_cleanup, instance_identity, trigger_subscriptions, provider_revocation_barriers, provider_oauth_operations in access exclusive mode",
       );
 
+      if (
+        (await client.query("select 1 from provider_revocation_barriers where state is not null limit 1")).rows.length
+      )
+        throw new Error("Reconcile provider revocation barriers before rotating encryption keys.");
+      const oauthRecovery = await client.query<RuntimeRow>(
+        "select id, value from provider_oauth_operations where value is not null",
+      );
+      for (const row of oauthRecovery.rows)
+        await client.query("update provider_oauth_operations set value=$1 where id=$2", [
+          await nextSecretCodec.encode(await this.secretCodec.decode(readString(row, "value"))),
+          readString(row, "id"),
+        ]);
       const project = await client.query<RuntimeRow>("select value from managed_project where id = 1");
       if (project.rows.length && !nextSecretCodec.encrypted)
         throw new Error("SaaS project configuration requires encrypted storage.");
@@ -368,11 +380,11 @@ class PostgresOAuthStateStore implements IOAuthStateStore {
   async set(state: OAuthAuthorizationState): Promise<void> {
     await this.pool.query(
       `
-        insert into oauth_states (state, value, created_at)
-        values ($1, $2, $3)
-        on conflict(state) do update set value = excluded.value, created_at = excluded.created_at
+        insert into oauth_states (state, value, created_at, service)
+        values ($1, $2, $3, $4)
+        on conflict(state) do update set value = excluded.value, created_at = excluded.created_at, service = excluded.service
       `,
-      [state.state, await this.secretCodec.encode(JSON.stringify(state)), state.createdAt],
+      [state.state, await this.secretCodec.encode(JSON.stringify(state)), state.createdAt, state.service],
     );
   }
 

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/klinsmaya/open-connector/gateway/internal/store"
 	"net/http"
@@ -136,4 +137,43 @@ func accounts(authority Authority, w http.ResponseWriter, r *http.Request, proje
 		next = signCursor(scope, r.Header.Get("x-api-key"))
 	}
 	writeList(w, out, next, total)
+}
+
+func (c *ConnectAPI) revokeConnection(w http.ResponseWriter, r *http.Request, project, id string) {
+	result, err := c.DB.DisableConnection(r.Context(), project, id)
+	if err != nil {
+		if !errors.Is(err, store.ErrDenied) {
+			failure(w, 503, "REVOCATION_UNAVAILABLE")
+			return
+		}
+		failure(w, 404, "NOT_FOUND")
+		return
+	}
+	switch result.State {
+	case "REVOKED":
+		writeJSON(w, map[string]string{"status": "success"})
+	case "UNSUPPORTED":
+		failure(w, 501, "REMOTE_REVOCATION_UNSUPPORTED")
+	case "BLOCKED":
+		failure(w, 409, "REMOTE_REVOCATION_BLOCKED")
+	default:
+		failure(w, 409, "LOCAL_DISABLED_REMOTE_REVOCATION_PENDING")
+	}
+}
+func (c *ConnectAPI) deleteConnection(w http.ResponseWriter, r *http.Request, project, id string) {
+	result, err := c.DB.ConnectionRevocation(r.Context(), project, id)
+	if err != nil || result.State != "REVOKED" {
+		failure(w, 409, "CONFIRMED_REVOCATION_REQUIRED")
+		return
+	}
+	upstream := c.Runtimes[result.Runtime]
+	if upstream == nil || upstream.DeleteRevokedConnection(r.Context(), result.Native) != nil {
+		failure(w, 503, "NATIVE_CLEANUP_PENDING")
+		return
+	}
+	if err := c.DB.DeleteRevokedConnection(r.Context(), project, id); err != nil {
+		failure(w, 409, "CONFIRMED_REVOCATION_REQUIRED")
+		return
+	}
+	writeJSON(w, map[string]string{"status": "success"})
 }

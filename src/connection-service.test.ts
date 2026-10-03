@@ -1444,6 +1444,21 @@ describe("ConnectionService disconnect revocation", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it("blocks the legacy DELETE path before it can schedule a late revoke for strict providers", async () => {
+    const store = new MemoryConnectionStore();
+    const revoke = vi.fn(async () => "done" as const);
+    const remove = vi.spyOn(store, "delete");
+    const service = createService([oauthProvider], {
+      store,
+      strictRevocationServices: ["example"],
+      oauthCredentials: { refresh: async (_service, credential) => credential, revoke },
+    });
+    await expect(service.disconnect("example", undefined, { revoke: true })).rejects.toThrow("non-destructive");
+    await expect(service.disconnect("example")).rejects.toThrow("non-destructive");
+    expect(remove).not.toHaveBeenCalled();
+    expect(revoke).not.toHaveBeenCalled();
+  });
+
   it("revokes nothing when the store refuses the delete", async () => {
     const { service, store } = await connectRevocable(revocableProvider);
     const fetcher = stubRevocationResponse(() => new Response(null, { status: 200 }));
@@ -1458,6 +1473,7 @@ describe("ConnectionService disconnect revocation", () => {
 });
 
 interface CreateServiceOptions {
+  strictRevocationServices?: readonly string[];
   providerHttpDispatch?: ProviderHttpDispatchOptions;
   logger?: ReturnType<typeof createTestLogger>;
   oauthCredentials?: IOAuthCredentialRefresher;
@@ -1469,6 +1485,7 @@ function createService(providers: ProviderDefinition[], options: CreateServiceOp
   const catalog = createCatalogStore(providers);
 
   return new ConnectionService({
+    strictRevocationServices: options.strictRevocationServices,
     providerHttpDispatch: options.providerHttpDispatch,
     catalog,
     logger: options.logger,

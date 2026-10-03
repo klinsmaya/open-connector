@@ -62,12 +62,31 @@ func exerciseMCP(t *testing.T, ctx context.Context, endpoint, bearer, connection
 	if replay != first {
 		t.Fatalf("unstable replay %s vs %s", first, replay)
 	}
+	args["operationId"] = "intent_same_args"
+	same := call("execute_action", args, false)
+	if !strings.Contains(same, `\"executions\":2`) {
+		t.Fatalf("distinct intent reused result %s", same)
+	}
+	args["operationId"] = "intent_0001"
 	args["input"] = map[string]any{"value": "different"}
 	call("execute_action", args, true)
 	args["operationId"] = "intent_0002"
 	second := call("execute_action", args, false)
-	if !strings.Contains(second, `\"executions\":2`) {
+	if !strings.Contains(second, `\"executions\":3`) {
 		t.Fatalf("second execution %s", second)
+	}
+	args["operationId"] = "intent_lost_response"
+	args["input"] = map[string]any{"value": "__lose_response__"}
+	call("execute_action", args, true)
+	uncertain := call("execute_action", args, true)
+	if !strings.Contains(uncertain, "OPERATION_UNKNOWN") {
+		t.Fatalf("unknown redispatched %s", uncertain)
+	}
+	args["operationId"] = "intent_after_loss"
+	args["input"] = map[string]any{"value": "after loss"}
+	after := call("execute_action", args, false)
+	if !strings.Contains(after, `\"executions\":5`) {
+		t.Fatalf("lost response caused extra execution %s", after)
 	}
 	args["actionId"] = "example.write"
 	call("execute_action", args, true)

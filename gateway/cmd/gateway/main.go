@@ -105,6 +105,9 @@ func run() error {
 		if e != nil {
 			return e
 		}
+		if e = upstream.CheckCompatibility(ctx); e != nil {
+			return errors.New("native security patches unavailable; compatibility disabled")
+		}
 		origin, e := url.Parse(*publicOrigin)
 		if e != nil || !native.SafeURL(origin, true) || origin.Path != "" || origin.RawQuery != "" {
 			return errors.New("invalid public origin")

@@ -182,12 +182,12 @@ export class D1OAuthStateStore implements IOAuthStateStore {
     await this.database
       .prepare(
         `
-        insert into oauth_states (state, value, created_at)
-        values (?, ?, ?)
-        on conflict(state) do update set value = excluded.value, created_at = excluded.created_at
+        insert into oauth_states (state, value, created_at, service)
+        values (?, ?, ?, ?)
+        on conflict(state) do update set value = excluded.value, created_at = excluded.created_at, service = excluded.service
       `,
       )
-      .bind(state.state, await this.secretCodec.encode(JSON.stringify(state)), state.createdAt)
+      .bind(state.state, await this.secretCodec.encode(JSON.stringify(state)), state.createdAt, state.service)
       .run();
   }
 

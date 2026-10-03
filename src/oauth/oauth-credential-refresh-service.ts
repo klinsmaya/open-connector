@@ -27,7 +27,11 @@ export interface IOAuthCredentialRefresher {
    * Revoke the credential at the provider's `revocationUrl`: `done` or
    * `unsupported` (none declared); a refusal or an unreachable endpoint throws.
    */
-  revoke?(service: string, credential: OAuthCredential): Promise<"done" | "unsupported">;
+  revoke?(
+    service: string,
+    credential: OAuthCredential,
+    options?: { requireMatchingClient?: boolean },
+  ): Promise<"done" | "unsupported">;
 }
 
 /**
@@ -113,7 +117,11 @@ export class OAuthCredentialRefreshService implements IOAuthCredentialRefresher 
    * the client configuration the credential was minted under. The provider
    * determines whether related tokens and the underlying grant are revoked.
    */
-  async revoke(service: string, credential: OAuthCredential): Promise<"done" | "unsupported"> {
+  async revoke(
+    service: string,
+    credential: OAuthCredential,
+    options?: { requireMatchingClient?: boolean },
+  ): Promise<"done" | "unsupported"> {
     let auth: OAuth2AuthDefinition;
     try {
       auth = this.clientConfigs.getOAuthDefinition(service);
@@ -131,6 +139,15 @@ export class OAuthCredentialRefreshService implements IOAuthCredentialRefresher 
       new ConnectionError("oauth_token_revocation_failed", message);
     const config =
       readOAuthClientConfigMetadata(service, credential.metadata) ?? (await this.clientConfigs.getConfig(service));
+    if (
+      options?.requireMatchingClient &&
+      (!config ||
+        !credential.metadata.oauthClientId ||
+        credential.metadata.oauthClientId !== config.clientId ||
+        JSON.stringify(credential.metadata.oauthClientExtra ?? {}) !== JSON.stringify(config.extra ?? {}))
+    ) {
+      throw createError("OAuth client identity changed; revocation requires reconciliation.");
+    }
     let revocationUrl: string;
     if (config) {
       revocationUrl = this.clientConfigs.resolveEndpointUrl(service, auth.revocationUrl, config);

@@ -67,7 +67,32 @@ func Run(ctx context.Context, db *store.Store, runtimes map[string]*native.Clien
 		case <-tick.C:
 			attempt, cancel := context.WithTimeout(ctx, 15*time.Second)
 			_ = Cleanup(attempt, db, runtimes)
+			_ = RevokeConnection(attempt, db, runtimes)
 			cancel()
 		}
 	}
+}
+
+// RevokeConnection retries only the native durable endpoint, never a raw provider grant.
+func RevokeConnection(ctx context.Context, db *store.Store, runtimes map[string]*native.Client) error {
+	r, j, err := db.LeaseRevocation(ctx)
+	if store.EmptyCleanup(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	state := "UNKNOWN"
+	if upstream := runtimes[r.Runtime]; upstream != nil {
+		err = upstream.RevokeConnection(ctx, r.Native)
+		switch {
+		case err == nil:
+			state = "REVOKED"
+		case errors.Is(err, native.ErrUnsupported):
+			state = "UNSUPPORTED"
+		case errors.Is(err, native.ErrBlocked):
+			state = "BLOCKED"
+		}
+	}
+	return db.FinishRevocation(ctx, r, j, state)
 }

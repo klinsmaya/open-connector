@@ -1,0 +1,1 @@
+ALTER TABLE connection ADD COLUMN remote_revocation text NOT NULL DEFAULT 'NONE' CHECK(remote_revocation IN ('NONE','PENDING','REVOKED','UNKNOWN','UNSUPPORTED','BLOCKED'));

@@ -129,6 +129,19 @@ export class SqliteRuntimeDatabase implements RuntimeDatabase {
   async rotateSecretCodec(nextSecretCodec: ISecretCodec): Promise<void> {
     this.database.exec("begin immediate");
     try {
+      if (this.database.prepare("select 1 from provider_revocation_barriers where state is not null limit 1").get())
+        throw new Error("Reconcile provider revocation barriers before rotating encryption keys.");
+      const oauthRecovery = await Promise.all(
+        this.database
+          .prepare("select id, value from provider_oauth_operations where value is not null")
+          .all()
+          .map(async (row) => ({
+            id: readString(row, "id"),
+            value: await nextSecretCodec.encode(await this.secretCodec.decode(readString(row, "value"))),
+          })),
+      );
+      for (const row of oauthRecovery)
+        this.database.prepare("update provider_oauth_operations set value=? where id=?").run(row.value, row.id);
       const project = this.database.prepare("select value from managed_project where id = 1").get();
       if (project && !nextSecretCodec.encrypted)
         throw new Error("SaaS project configuration requires encrypted storage.");
@@ -351,12 +364,12 @@ export class SqliteOAuthStateStore implements IOAuthStateStore {
     this.database
       .prepare(
         `
-        insert into oauth_states (state, value, created_at)
-        values (?, ?, ?)
-        on conflict(state) do update set value = excluded.value, created_at = excluded.created_at
+        insert into oauth_states (state, value, created_at, service)
+        values (?, ?, ?, ?)
+        on conflict(state) do update set value = excluded.value, created_at = excluded.created_at, service = excluded.service
       `,
       )
-      .run(state.state, await this.secretCodec.encode(JSON.stringify(state)), state.createdAt);
+      .run(state.state, await this.secretCodec.encode(JSON.stringify(state)), state.createdAt, state.service);
   }
 
   async take(state: string): Promise<OAuthAuthorizationState | undefined> {
