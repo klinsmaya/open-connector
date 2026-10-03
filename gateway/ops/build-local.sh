@@ -15,5 +15,6 @@ chmod 0644 "$output/ca-certificates.crt"
 sha256sum "$output/gateway" "$output/ca-certificates.crt" > "$output/SHA256SUMS"
 export BUILDX_CONFIG="$output/buildx"
 docker build --network=none --pull=false --iidfile "$output/image-id" -t open-connector-gateway:recovery-local "$output"
-docker run --rm --network=none --read-only --cap-drop=ALL --security-opt=no-new-privileges open-connector-gateway:recovery-local -h
+docker_image_id=$(cat "$output/image-id")
+docker run --rm --pull=never --network=none --read-only --cap-drop=ALL --security-opt=no-new-privileges "$docker_image_id" -h
 cat "$output/image-id"
