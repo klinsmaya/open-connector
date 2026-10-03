@@ -114,4 +114,9 @@ func exerciseMCP(t *testing.T, ctx context.Context, endpoint, bearer, connection
 	}
 	args["actionId"] = "example.write"
 	call("execute_action", args, true)
+	args["actionId"] = "example.hidden"
+	call("execute_action", args, true)
+	args["actionId"] = "example.read"
+	args["connectionName"] = "other-account"
+	call("execute_action", args, true)
 }
