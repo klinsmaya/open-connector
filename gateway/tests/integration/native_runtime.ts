@@ -1,5 +1,6 @@
 // Real OpenConnector HTTP runtime with an offline OAuth exchange fixture.
 import { serve } from "@hono/node-server";
+import { createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { createCatalogStore } from "../../../src/catalog-store.ts";
 import { s } from "../../../src/core/json-schema.ts";
@@ -89,15 +90,21 @@ if (fixturePath)
       return context.json({ error: "forbidden" }, 403);
     const raw = new DatabaseSync(fixturePath, { readOnly: true });
     try {
-      const rows = raw.prepare("select value from connections where source='local'").all();
+      const rows = raw.prepare("select id, value from connections where source='local'").all();
       let retained = false;
+      const connections: { id: string; ciphertextSHA256: string }[] = [];
       for (const row of rows) {
         const encrypted = String(row.value);
         const value = JSON.parse(await codec.decode(encrypted));
-        if (value.accessToken === "fixture-provider-secret" && !encrypted.includes("fixture-provider-secret"))
+        if (value.accessToken === "fixture-provider-secret" && !encrypted.includes("fixture-provider-secret")) {
           retained = true;
+          connections.push({
+            id: String(row.id),
+            ciphertextSHA256: createHash("sha256").update(encrypted).digest("hex"),
+          });
+        }
       }
-      return context.json({ encryptedOrphanRetained: retained });
+      return context.json({ encryptedCredentialRetained: retained, connections, executions });
     } finally {
       raw.close();
     }

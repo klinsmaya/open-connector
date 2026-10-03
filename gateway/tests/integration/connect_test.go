@@ -202,11 +202,25 @@ func TestRealSDKGatewayPostgresNativeOAuthIdentityGate(t *testing.T) {
 					t.Fatal(e)
 				}
 				var report struct {
-					Retained bool `json:"encryptedOrphanRetained"`
+					Retained    bool `json:"encryptedCredentialRetained"`
+					Connections []struct {
+						ID     string `json:"id"`
+						Digest string `json:"ciphertextSHA256"`
+					} `json:"connections"`
 				}
 				e = json.NewDecoder(res.Body).Decode(&report)
 				res.Body.Close()
-				if e != nil || res.StatusCode != 200 || !report.Retained {
+				var nativeID string
+				if err := db.Pool.QueryRow(ctx, `SELECT native_connection_id FROM connect_transaction WHERE id=$1`, link.ConnectedAccountID).Scan(&nativeID); err != nil {
+					t.Fatal(err)
+				}
+				exactRetained := false
+				for _, connection := range report.Connections {
+					if connection.ID == nativeID && len(connection.Digest) == 64 {
+						exactRetained = true
+					}
+				}
+				if e != nil || res.StatusCode != 200 || !report.Retained || !exactRetained {
 					t.Fatal("mismatched browser lost encrypted native OAuth recovery")
 				}
 			}
