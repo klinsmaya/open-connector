@@ -1,0 +1,149 @@
+[
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/pkg/composio/auth_configs.go",
+    "snapshot": "multica-core-v1/server/pkg/composio/auth_configs.go.snapshot",
+    "sha256": "3e0c9568de8ab504747efbd31c14059548ca489b1386a94a698c8774e9742398"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/pkg/composio/client.go",
+    "snapshot": "multica-core-v1/server/pkg/composio/client.go.snapshot",
+    "sha256": "c201c9926de95b919dbdccd8aeb344d236f72722ac24e8bca19f8d69f678ee49"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/pkg/composio/connected_accounts.go",
+    "snapshot": "multica-core-v1/server/pkg/composio/connected_accounts.go.snapshot",
+    "sha256": "4b5ccdea8e12fd12b87355d0aadebc5a29a035d04159a7c3c4a0f2eadc5635eb"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/pkg/composio/doc.go",
+    "snapshot": "multica-core-v1/server/pkg/composio/doc.go.snapshot",
+    "sha256": "5cd4c5d0e813a0708738928412fc7be9bed9e8ac4a34713ee60527f19bca7ebc"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/pkg/composio/errors.go",
+    "snapshot": "multica-core-v1/server/pkg/composio/errors.go.snapshot",
+    "sha256": "ddd37c7b5ca1bb46e75b0c796a0f3d4d7f46aeaa4d4f6c7c4bb30b67d9093a44"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/pkg/composio/sessions.go",
+    "snapshot": "multica-core-v1/server/pkg/composio/sessions.go.snapshot",
+    "sha256": "56dee3a66fd1bf2be6d5602d6c09c65efff84d59f7e633344b8f64a0d8aabbaa"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/pkg/composio/toolkits.go",
+    "snapshot": "multica-core-v1/server/pkg/composio/toolkits.go.snapshot",
+    "sha256": "d402f6dc24b8dbc3ecbe77b614605b2f9c1d989e5a142dddad1136444a066217"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/pkg/composio/tools.go",
+    "snapshot": "multica-core-v1/server/pkg/composio/tools.go.snapshot",
+    "sha256": "6c48c2962e2aabd8114d509a6174ea1854cdc6861614f9342ffb44d61b090a03"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/pkg/composio/webhook.go",
+    "snapshot": "multica-core-v1/server/pkg/composio/webhook.go.snapshot",
+    "sha256": "776d84286832631002e67ae6314d6a37747e75ac8fd5eec6a200715ad69fb19e"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/internal/integrations/composio/service.go",
+    "snapshot": "multica-core-v1/server/internal/integrations/composio/service.go.snapshot",
+    "sha256": "4ad7e0b8d7b89a80ac16d6423cd7fea8b2ae06724c0c69e9badbba844b063dc0"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/internal/integrations/composio/dispatch.go",
+    "snapshot": "multica-core-v1/server/internal/integrations/composio/dispatch.go.snapshot",
+    "sha256": "6faeab70a696e3cb9c5a7fa5d8acc08d5905f66923e4057b89807a9a291dcc6e"
+  },
+  {
+    "repository": "open-connector",
+    "commit": "0535653ace7338adb346ccf564458eb7a57bdefd",
+    "source": "docs/runtime-api.md",
+    "snapshot": "openconnector/docs/runtime-api.md.snapshot",
+    "sha256": "b80187e1f95ab324eb29fe433415cb4d14171fb7521fc445f1b15a7e1b170af5"
+  },
+  {
+    "repository": "open-connector",
+    "commit": "0535653ace7338adb346ccf564458eb7a57bdefd",
+    "source": "docs/programmatic-connections.md",
+    "snapshot": "openconnector/docs/programmatic-connections.md.snapshot",
+    "sha256": "4b83ea8743aa080fc2deb7e7e4796741c7b868b15568b3b9b5519891654e01b1"
+  },
+  {
+    "repository": "open-connector",
+    "commit": "0535653ace7338adb346ccf564458eb7a57bdefd",
+    "source": "src/server/api/connection-routes.ts",
+    "snapshot": "openconnector/src/server/api/connection-routes.ts.snapshot",
+    "sha256": "3d5de2db5399f05470b5b9fc9a52c26110a5a09fd9ef4c0a5ca10e5759d71f48"
+  },
+  {
+    "repository": "open-connector",
+    "commit": "0535653ace7338adb346ccf564458eb7a57bdefd",
+    "source": "src/server/storage/connection-request-store.ts",
+    "snapshot": "openconnector/src/server/storage/connection-request-store.ts.snapshot",
+    "sha256": "7f3607947954938476e8a78c8006d0448f7cf3d6fa2e6742e8c689bb8a1ff662"
+  },
+  {
+    "repository": "open-connector",
+    "commit": "0535653ace7338adb346ccf564458eb7a57bdefd",
+    "source": "src/mcp.ts",
+    "snapshot": "openconnector/src/mcp.ts.snapshot",
+    "sha256": "785be122b07c04fbae454bd806b8e9e70b2f3a5cddc9dae48e8d67ff39492b6f"
+  },
+  {
+    "repository": "open-connector",
+    "commit": "0535653ace7338adb346ccf564458eb7a57bdefd",
+    "source": "src/server/api/runtime-api.ts",
+    "snapshot": "openconnector/src/server/api/runtime-api.ts.snapshot",
+    "sha256": "b8873eb758ca891397b347c762908a209403460107b793fafb69677ebbcc416c"
+  },
+  {
+    "repository": "open-connector",
+    "commit": "0535653ace7338adb346ccf564458eb7a57bdefd",
+    "source": "src/server/connect-server.ts",
+    "snapshot": "openconnector/src/server/connect-server.ts.snapshot",
+    "sha256": "72c33323b6c9aea97e30d5d75a6cf4d350c5d4758c538c61ea699797775e6616"
+  },
+  {
+    "repository": "open-connector",
+    "commit": "0535653ace7338adb346ccf564458eb7a57bdefd",
+    "source": "src/server/storage/runtime-token-service.ts",
+    "snapshot": "openconnector/src/server/storage/runtime-token-service.ts.snapshot",
+    "sha256": "3d34caa1eea56c82f7e35f175958437ecb37dcbc6b3c31e6802006182f91537c"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/internal/runtimeapps/connected_app.go",
+    "snapshot": "multica-core-v1/server/internal/runtimeapps/connected_app.go.snapshot",
+    "sha256": "45d22d26ed87e7de7ee0264e19787c661be888312a5bf9e631bc8dd780078328"
+  },
+  {
+    "repository": "multica",
+    "commit": "a9e82c79739446111b8ca9acbb256f584072d20d",
+    "source": "server/cmd/server/router.go",
+    "snapshot": "multica-core-v1/server/cmd/server/router.go.snapshot",
+    "sha256": "72b1a9c77ba7645ba0d88ae93e8e8951a17d3a00a3866a036a1c14cf9e5bf0e5"
+  }
+]

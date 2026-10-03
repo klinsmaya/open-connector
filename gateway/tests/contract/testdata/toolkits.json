@@ -1,0 +1,5 @@
+{
+  "items": [{ "slug": "github", "name": "GitHub", "auth_schemes": ["OAUTH2"] }],
+  "next_cursor": "fixture-page-2",
+  "total_items": 2
+}

@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "id": "ac_fixture",
+      "toolkit": { "slug": "github" },
+      "auth_scheme": "OAUTH2",
+      "is_composio_managed": false,
+      "status": "ENABLED"
+    }
+  ],
+  "total_items": 1
+}

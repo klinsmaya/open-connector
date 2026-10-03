@@ -1,0 +1,13 @@
+{
+  "items": [
+    {
+      "id": "ca_fixture",
+      "user_id": "owner-a",
+      "auth_config_id": "ac_fixture",
+      "auth_config": { "id": "ac_fixture", "auth_scheme": "OAUTH2", "is_composio_managed": false },
+      "toolkit": { "slug": "github" },
+      "status": "ACTIVE"
+    }
+  ],
+  "total_items": 1
+}

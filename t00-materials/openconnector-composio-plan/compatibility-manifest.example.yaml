@@ -1,0 +1,114 @@
+# 设计模板，不是运行配置、实测报告或已验证的兼容声明。
+manifest_version: 1
+status: design_only
+prepared_at: "2026-10-02"
+profile: multica-core-v1
+mcp_tool_profile: native-tools-v1
+
+research_baseline:
+  multica:
+    repository: multica-ai/multica
+    commit: 2ea01ae4ef55de4310b99af192d2dbd367832883
+  openconnector:
+    repository: oomol-lab/open-connector
+    commit: 0535653ace7338adb346ccf564458eb7a57bdefd
+  composio:
+    api_prefix: /api/v3.1
+    documentation_checked_at: "2026-10-02"
+    schema_snapshot_sha256: null
+
+actual_deployment:
+  gateway_repository: null
+  gateway_commit: null
+  gateway_image_digest: null
+  multica_fork: null
+  multica_commit: null
+  multica_image_digest: null
+  openconnector_fork: null
+  openconnector_commit: null
+  openconnector_image_digest: null
+  mcp_go_sdk_version: null
+  protocol_versions_tested: []
+  agent_runtimes_tested: []
+
+required_patches:
+  multica:
+    - id: backend_base_url
+      status: not_implemented
+    - id: session_scoped_mcp_headers
+      status: not_implemented
+    - id: claim_time_session_validation
+      status: not_implemented
+    - id: oauth_browser_identity_verification
+      status: not_implemented
+    - id: task_policy_revocation_and_audit
+      status: not_implemented
+    - id: lifecycle_ui_and_backend_label
+      status: not_implemented
+  openconnector:
+    - id: trusted_subject_scoped_oauth_requests
+      status: not_implemented
+      fallback: serialized_provider_auth_development_only
+    - id: non_destructive_remote_revocation
+      status: not_implemented
+      fallback: explicit_local_disconnect_not_strict_revoke
+
+planned_routes:
+  - {method: GET, path: /api/v3.1/toolkits, status: not_implemented}
+  - {method: GET, path: '/api/v3.1/toolkits/{slug}', status: not_implemented}
+  - {method: GET, path: /api/v3.1/auth_configs, status: not_implemented}
+  - {method: POST, path: /api/v3.1/connected_accounts/link, status: not_implemented}
+  - {method: GET, path: /api/v3.1/connected_accounts, status: not_implemented}
+  - {method: GET, path: '/api/v3.1/connected_accounts/{id}', status: not_implemented}
+  - {method: POST, path: '/api/v3.1/connected_accounts/{id}/revoke', status: not_implemented}
+  - {method: DELETE, path: '/api/v3.1/connected_accounts/{id}', status: not_implemented}
+  - {method: POST, path: /api/v3.1/tool_router/session, status: not_implemented}
+  - {method: POST, path: '/sessions/{id}/mcp', status: not_implemented}
+
+compatibility_extensions:
+  mcp_response_headers: proposed
+  compat_context: proposed
+  trusted_openconnector_subject_header: proposed
+  non_destructive_revoke_endpoint: proposed
+  full_mcp_oauth_discovery: out_of_scope
+
+security_requirements:
+  session_token_required: true
+  project_key_to_agent_allowed: false
+  admin_token_to_agent_allowed: false
+  unrestricted_connection_grants_allowed: false
+  agent_access_to_control_plane_allowed: false
+  current_policy_checked_before_execution: true
+  unknown_write_outcome_auto_replay: false
+  unverified_browser_identity_activation: false
+
+release_scope:
+  read_only_first: true
+  approved_providers: []
+  approved_action_ids: []
+  provider_remote_revocation_verified: []
+  live_provider_accounts_tested: []
+  arbitrary_proxy: disabled
+  provider_triggers: disabled
+  file_transit: deferred
+  remote_workbench: unsupported
+  remote_bash: unsupported
+  full_composio_sdk_compatibility: not_claimed
+  automatic_credential_migration: not_supported
+
+suggested_defaults_not_measured:
+  session_ttl: 60m
+  connect_link_ttl: 10m
+  multica_state_ttl_compat_mode: 15m
+
+validation:
+  offline_contract: not_run
+  actual_openconnector_integration: not_run
+  actual_multica_agent_e2e: not_run
+  live_provider_oauth: not_run
+  remote_revocation: not_run
+  security_review: not_run
+  upgrade_and_rollback: not_run
+  backup_restore: not_run
+  tested_at: null
+  evidence_path: null
