@@ -21,11 +21,14 @@ func (b bearerTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 func exerciseMCP(t *testing.T, ctx context.Context, endpoint, bearer, connection string) {
 	t.Helper()
 	client := mcp.NewClient(&mcp.Implementation{Name: "gateway-integration", Version: "1"}, nil)
-	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: endpoint, HTTPClient: &http.Client{Transport: bearerTransport(bearer)}}, nil)
+	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: endpoint, HTTPClient: &http.Client{Transport: bearerTransport(bearer)}}, &mcp.ClientSessionOptions{ProtocolVersion: "2025-06-18"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer session.Close()
+	if session.InitializeResult().ProtocolVersion != "2025-06-18" {
+		t.Fatal("unexpected negotiated protocol")
+	}
 	list, err := session.ListTools(ctx, nil)
 	if err != nil || len(list.Tools) != 5 {
 		t.Fatalf("tools=%+v error=%v", list, err)

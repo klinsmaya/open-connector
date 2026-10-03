@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/klinsmaya/open-connector/gateway/internal/authority"
 	"github.com/klinsmaya/open-connector/gateway/internal/credentials"
 	"github.com/klinsmaya/open-connector/gateway/internal/native"
 	"net"
@@ -40,6 +41,8 @@ func run() error {
 	vaultFile := flag.String("vault-key-file", "", "32-byte raw gateway encryption key file")
 	publicOrigin := flag.String("public-origin", "", "browser-visible control origin")
 	mcpOrigin := flag.String("mcp-origin", "", "browser-visible execution origin")
+	sourceOrigin := flag.String("source-origin", "", "trusted Multica authority origin")
+	sourceSecret := flag.String("source-token-file", "", "dedicated Multica authority token file")
 	flag.Parse()
 	if *mode != "serve" && *mode != "migrate" && *mode != "quarantine-restore" {
 		return errors.New("invalid mode")
@@ -110,6 +113,15 @@ func run() error {
 		if e != nil || !native.SafeURL(mcpURL, true) || mcpURL.Path != "" || mcpURL.RawQuery != "" {
 			return errors.New("invalid MCP origin")
 		}
+		sourceToken, e := os.ReadFile(*sourceSecret)
+		if e != nil {
+			return errors.New("source authority secret unavailable")
+		}
+		source, e := authority.New(*sourceOrigin, strings.TrimSpace(string(sourceToken)), true)
+		if e != nil {
+			return e
+		}
+		db.Authorize = source.Authorize
 		flow = &httpapi.ConnectAPI{DB: db, Runtimes: map[string]*native.Client{*nativeID: upstream}, Vault: vault, PublicOrigin: *publicOrigin, MCPOrigin: *mcpOrigin, AllowLoopback: true}
 	}
 	if flow != nil {

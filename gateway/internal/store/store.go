@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/klinsmaya/open-connector/gateway/internal/authority"
 	"github.com/klinsmaya/open-connector/gateway/internal/credentials"
 )
 
@@ -21,7 +22,10 @@ var migrations embed.FS
 var ErrDenied = errors.New("access denied")
 
 // Store has no authorization cache: every admission reads current durable state.
-type Store struct{ Pool *pgxpool.Pool }
+type Store struct {
+	Pool      *pgxpool.Pool
+	Authorize func(context.Context, authority.Check) error
+}
 
 func Open(ctx context.Context, url string) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(url)
@@ -181,6 +185,21 @@ func (s *Store) Admit(ctx context.Context, sessionID, token string) (Admission, 
  OR (g.action_id=ANY(ac.approved_actions)) IS NOT TRUE))`, sessionID, credentials.Digest(token)).Scan(&a.ProjectID, &a.SessionID, &a.SubjectID, &a.ActorID, &a.AgentID, &a.TaskID)
 	if err != nil {
 		return Admission{}, ErrDenied
+	}
+	if s.Authorize != nil {
+		grants, e := s.Grants(ctx, a)
+		if e != nil || len(grants) == 0 {
+			return Admission{}, ErrDenied
+		}
+		pins := map[string][]string{}
+		for _, g := range grants {
+			if !has(pins[g.Toolkit], g.Connection) {
+				pins[g.Toolkit] = append(pins[g.Toolkit], g.Connection)
+			}
+		}
+		if s.Authorize(ctx, authority.Check{Subject: a.SubjectID, Actor: a.ActorID, Agent: a.AgentID, Task: a.TaskID, Connections: pins}) != nil {
+			return Admission{}, ErrDenied
+		}
 	}
 	return a, nil
 }

@@ -32,7 +32,7 @@ token deletion and retained ciphertext. Provider exchange and read output are
 offline fixtures; no real provider or daemon result is claimed.
 
 PASS: OC `npm run fix-check`; gateway `go vet ./...`; Multica SDK/integration
- tests, including private compatibility requests rejecting official mode before I/O.
+tests, including private compatibility requests rejecting official mode before I/O.
 
 Read-only review identified and fixed: missing terminal task tombstone, missing
 continuous capability checks, and late mint losing cleanup scheduling.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/jackc/pgx/v5"
+	"github.com/klinsmaya/open-connector/gateway/internal/authority"
 	"github.com/klinsmaya/open-connector/gateway/internal/credentials"
 	"github.com/klinsmaya/open-connector/gateway/internal/native"
 	"sort"
@@ -27,6 +28,9 @@ type SessionPlan struct {
 func (s *Store) PrepareSession(ctx context.Context, in SessionInput, bearer string) (SessionPlan, error) {
 	var plan SessionPlan
 	if in.Subject == "" || in.Agent == "" || in.Actor == "" || in.Task == "" || !native.Exact(in.Toolkits) || len(in.Toolkits) != len(in.Connections) {
+		return plan, ErrDenied
+	}
+	if s.Authorize != nil && s.Authorize(ctx, authority.Check{Subject: in.Subject, Actor: in.Actor, Agent: in.Agent, Task: in.Task, Connections: in.Connections}) != nil {
 		return plan, ErrDenied
 	}
 	tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead})
