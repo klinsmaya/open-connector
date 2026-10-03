@@ -1,3 +1,7 @@
+Current local candidate: [evidence and release gates](docs/t09-t12-evidence.md),
+[operations and rollback](ops/RUNBOOK.md), [recovery handoff](docs/recovery-handoff.md).
+Older evidence files describe earlier checkpoints; they are not the current status.
+
 # OpenConnector compatibility gateway
 
 Work in progress: multica-core-v1, local development only. The loopback-only development executable exposes catalog reads; connection

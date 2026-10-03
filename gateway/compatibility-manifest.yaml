@@ -124,3 +124,12 @@ development_workspace:
   node: 24.19.0
   production_deployment: not_inspected_or_authorized
   old_implementation: not_recovered
+
+candidate_source:
+  openconnector_code_commit: 62732b7cc8cf079cd65bcdf74f627facdb31b994
+  multica_commit: 87cd8cca031cdfdd8954b04a31c4609260d4626c
+  native_security_revision: 2
+  release_gate: blocked
+  target_agent_cli: not_run
+  live_provider_revocation: not_run
+  full_multiservice_canary: not_run
