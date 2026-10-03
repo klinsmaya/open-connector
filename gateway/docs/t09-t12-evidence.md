@@ -65,13 +65,24 @@ successful cleanup with a lost response. Replaced/shared-grant tasks stay BLOCKE
 
 ## Release gates still open
 
-Target Agent CLIs have not been invoked. Multica CLAUDE.md requires explicit
-real-agent authorization and a tagged smoke test because account access/quota
-may be involved; the current authorization permits offline tests. Existing
-Composio prompts/skills have not been certified against native-tools-v1 in those
-CLIs. Real provider OAuth/revocation, deployment TLS/network enforcement, full
-multiservice restore/canary, and production image signing remain unverified.
-Do not treat the local fixture results as approval to release.
+Codex 0.159.0-alpha.3 now passes actual app-server initialization, MCP
+inventory, list_connections and execute_action inside a credential-free,
+network-none container. No model turn or third-party service was invoked.
+Claude/OpenCode are absent and outside this available-CLI validation scope.
+Model-mediated prompt/Skill behavior still requires an explicitly authorized
+model account; a direct RPC fixture cannot certify tool-selection behavior.
+
+The complete local Multica server, gateway and encrypted native OC passed an
+isolated restore/canary/rollback drill against a separate network-none PostgreSQL
+instance. The database bridge cannot reach the original fixture. This is a
+bounded offline development deployment, not production TLS/network topology or
+signed native/Multica release-image certification. See
+[offline CLI and canary evidence](t11-t12-offline-canary.md).
+
+BLOCKED_EXTERNAL: real provider OAuth/revocation and grant exclusivity; actual
+model-mediated prompt/Skill behavior; target deployment TLS/network enforcement,
+production image signing and authorized production canary. Do not treat the
+local fixture results as approval to release.
 
 The inherited Multica migration uniqueness test fails on two baseline migration
 468 names. Both exist in base a9e82c7. New migrations 469–475 use distinct numbers;

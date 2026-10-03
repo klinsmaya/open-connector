@@ -1,4 +1,4 @@
-# Local development evidence; release remains blocked by unverified live/CLI gates.
+# Local development evidence; release remains blocked by unverified live model/provider/deployment gates.
 manifest_version: 1
 status: development_partial
 prepared_at: "2026-10-03"
@@ -104,12 +104,12 @@ suggested_defaults_not_measured:
 validation:
   offline_contract: partial_pass
   actual_openconnector_integration: passed_offline_provider
-  actual_multica_agent_e2e: not_run
+  actual_multica_agent_e2e: passed_codex_offline_protocol_no_model
   live_provider_oauth: not_run
   remote_revocation: simulated_only
   security_review: partial_independent_review
-  upgrade_and_rollback: not_run
-  backup_restore: passed_gateway_pg_dump_restore_only
+  upgrade_and_rollback: passed_isolated_compat_disable_restart
+  backup_restore: passed_isolated_multiservice_pg_sqlite
   tested_at: "2026-10-03"
   evidence_path: docs/
 
@@ -126,10 +126,10 @@ development_workspace:
   old_implementation: not_recovered
 
 candidate_source:
-  openconnector_code_commit: 62732b7cc8cf079cd65bcdf74f627facdb31b994
-  multica_commit: 87cd8cca031cdfdd8954b04a31c4609260d4626c
+  openconnector_code_commit: 353533aa78a798491a0e455a54e32c362ef3406e
+  multica_commit: b2b01356b1ca588e29a6db43200c2ed0f847b2af
   native_security_revision: 2
   release_gate: blocked
-  target_agent_cli: not_run
+  target_agent_cli: codex_0.159.0-alpha.3_offline_protocol
   live_provider_revocation: not_run
-  full_multiservice_canary: not_run
+  full_multiservice_canary: passed_isolated_offline_fixture

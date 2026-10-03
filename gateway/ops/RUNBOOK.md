@@ -79,9 +79,11 @@ migration stops startup. Native security-capability revision 2 and subject
 namespacing are required by gateway startup; an older native binary closes compat.
 Do not run mixed native versions around a revocation barrier.
 
-A future canary must use a separate project, callback origin, database and fresh
-source tasks; use read-only fixture accounts before approving real providers.
-There is no production canary evidence in this handoff.
+The local isolated canary uses a separate PostgreSQL instance, restored native
+SQLite, real Multica/gateway/native processes and a scoped read-only fixture.
+See `docs/t11-t12-offline-canary.md` for reproduction and isolation limits.
+A target deployment canary still requires its own project, callback origin,
+database and fresh source tasks; no production canary is authorized or claimed.
 
 For rollback, first stop new compatibility claims and ingress, drain or disable
 workers, revoke sessions and retain the durable tombstones and recovery data.

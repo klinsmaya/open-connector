@@ -4,47 +4,47 @@
 
 本表仅记录本环境实际证据；PARTIAL 不能视为端到端通过。原附件验收表保持不变。详见《完整实施方案.md》第16节。
 
-| ID  | 验收内容                                               | 状态                    | 证据/测试路径                                                                                |
-| --- | ------------------------------------------------------ | ----------------------- | -------------------------------------------------------------------------------------------- |
-| C01 | Multica 真实 SDK 能解析 toolkit 与 auth config 响应    | PASS (SDK/gateway/PG)   | tests/integration/catalog_test.go; docs/t03-evidence.md                                      |
-| C02 | 未配置的 provider 不显示为 connectable                 | PARTIAL                 | Catalog only; docs/t03-evidence.md                                                           |
-| C03 | 重复数组过滤与 auth_config 过滤格式正确                | PARTIAL                 | Catalog only; docs/t03-evidence.md                                                           |
-| C04 | 分页在权限过滤后执行，游标不能跨项目复用               | PARTIAL                 | Catalog only; docs/t03-evidence.md                                                           |
-| C05 | connected_account 包含校验需要的 user/auth config 字段 | PARTIAL                 | docs/t04-evidence.md; separate Multica login tests                                           |
-| C06 | 未支持路由明确失败，不能伪造 2xx                       | PASS (SDK/gateway/PG)   | tests/integration/catalog_test.go; docs/t03-evidence.md                                      |
-| A01 | OAuth 完成后真实账号与 expected subject 匹配           | PARTIAL                 | docs/t04-evidence.md; separate Multica login tests                                           |
-| A02 | 拒绝授权不创建 ACTIVE 映射                             | PARTIAL                 | store callback phase/expiry/revocation matrix PASS; provider browser denial not certified    |
-| A03 | 伪造 success query 不能激活账号                        | PARTIAL                 | docs/t04-evidence.md; separate Multica login tests                                           |
-| A04 | 转发链接给其他登录用户不能完成绑定                     | PARTIAL                 | docs/t04-evidence.md; separate Multica login tests                                           |
-| A05 | 重复 callback 不产生额外连接或权限                     | PARTIAL                 | docs/t04-evidence.md; separate Multica login tests                                           |
-| A06 | 过期/替代/已撤销交易的晚 callback 不复活连接           | PARTIAL                 | store callback phase/expiry/revocation matrix PASS; provider browser denial not certified    |
-| A07 | 同 provider 两用户并发授权互不取消                     | PARTIAL                 | Native only; docs/t05-evidence.md                                                            |
-| A08 | 服务重启后可恢复授权事务并正确清理孤儿连接             | PARTIAL                 | encrypted native orphan retention + durable transactions; full restart cleanup not certified |
-| S01 | A 用户 pin B 用户 connected_account_id 被拒绝          | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                               |
-| S02 | 正确账号但错误 toolkit/auth config 被拒绝              | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                               |
-| S03 | 空连接或 Action 集合不创建不受限 Token                 | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                               |
-| S04 | 会话 token 不能调用控制 API 或 OpenConnector 管理面    | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                               |
-| S05 | 项目 Key 不进入 Agent overlay、进程环境或普通日志      | PARTIAL                 | t07-evidence.md: claim/prompt scan PASS; actual CLI environment/logs NOT_RUN                 |
-| S06 | 修改 connectionName/native ID 不能越权或默认回退       | PASS (offline)          | tests/integration/mcp_test.go, connect_test.go: exact selector/action rejected               |
-| S07 | 权限变化后旧会话被拒绝，新建会话重新计算交集           | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                               |
-| S08 | 排队时间超过 token TTL 时启动前安全重新签发            | PARTIAL                 | claim-time issuance tested; wall-clock long queue NOT_RUN                                    |
-| S09 | 任务完成、取消或 Agent 删除后会话不可继续执行          | PASS (claim chain)      | Multica composio_claim_e2e_test.go: unexpired terminal/cancel/delete sessions denied         |
-| S10 | 权限存储不可用时停止执行，不依赖旧缓存放行             | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                               |
-| M01 | MCP initialize、tools/list、tools/call 在目标 CLI 通过 | NOT_RUN                 | 待填写                                                                                       |
-| M02 | discovery、guide 和 execute 具有一致的权限视图         | PASS (SDK fixture)      | tests/integration/connect_test.go, mcp_test.go                                               |
-| M03 | 原有 Composio 提示词/Skill 不导致工具名幻觉            | NOT_RUN                 | 待填写                                                                                       |
-| M04 | 未支持工作台、代理、远程 Bash 不被悄悄开放             | PASS (SDK fixture)      | only five read-only tools; unsupported routes fail                                           |
-| E01 | 同 operation ID 的传输重试不重复分发写操作             | PARTIAL                 | durable operation replay tested read-only; writes intentionally disabled                     |
-| E02 | 相同幂等键但不同参数/连接返回冲突                      | PASS (SDK fixture)      | operation fingerprint conflict tests                                                         |
-| E03 | 第三方已执行但响应丢失进入 UNKNOWN，不盲重试           | PARTIAL                 | DISPATCHED/UNKNOWN refusal tested; real third-party writes disabled                          |
-| E04 | 新业务意图即使参数相同也有独立操作 ID                  | PASS (store/SDK)        | caller operation ID is mandatory; distinct intent reserves independently                     |
-| E05 | 超过幂等窗口不能声称自动重放仍安全                     | PARTIAL                 | no automatic ledger expiry; real retention policy not deployed                               |
-| R01 | 撤销立即阻止新的执行 admission                         | PASS (claim chain)      | local disable and live source authority before outbox                                        |
-| R02 | 上游撤权失败仍保留恢复所需信息且不恢复 ACTIVE          | PASS (simulated)        | SQLite/real PG native barriers; UNKNOWN ciphertext retention                                 |
-| R03 | unsupported 明确显示，与“上游已撤销”不同               | PASS (offline chain/UI) | explicit disconnect UNSUPPORTED; settings status render                                      |
-| R04 | revoke 与 delete 重复调用均满足各自幂等契约            | PASS (simulated)        | native barrier replay, confirmed delete, gateway deleted tombstone                           |
-| R05 | 替换真实账号不会把旧 session 权限移给新账号            | PASS (store)            | replacement generation revokes old sessions; blocked shared-grant job retained               |
-| U01 | official 模式回归通过，不发送兼容扩展                  | PASS (focused)          | Multica SDK/integration official-mode regression tests                                       |
-| U02 | 固定基线升级、回退、数据库恢复演练通过                 | PARTIAL                 | actual gateway pg_dump/restore passed; full service canary/rollback NOT_RUN                  |
+| ID  | 验收内容                                               | 状态                    | 证据/测试路径                                                                                   |
+| --- | ------------------------------------------------------ | ----------------------- | ----------------------------------------------------------------------------------------------- |
+| C01 | Multica 真实 SDK 能解析 toolkit 与 auth config 响应    | PASS (SDK/gateway/PG)   | tests/integration/catalog_test.go; docs/t03-evidence.md                                         |
+| C02 | 未配置的 provider 不显示为 connectable                 | PARTIAL                 | Catalog only; docs/t03-evidence.md                                                              |
+| C03 | 重复数组过滤与 auth_config 过滤格式正确                | PARTIAL                 | Catalog only; docs/t03-evidence.md                                                              |
+| C04 | 分页在权限过滤后执行，游标不能跨项目复用               | PARTIAL                 | Catalog only; docs/t03-evidence.md                                                              |
+| C05 | connected_account 包含校验需要的 user/auth config 字段 | PARTIAL                 | docs/t04-evidence.md; separate Multica login tests                                              |
+| C06 | 未支持路由明确失败，不能伪造 2xx                       | PASS (SDK/gateway/PG)   | tests/integration/catalog_test.go; docs/t03-evidence.md                                         |
+| A01 | OAuth 完成后真实账号与 expected subject 匹配           | PARTIAL                 | docs/t04-evidence.md; separate Multica login tests                                              |
+| A02 | 拒绝授权不创建 ACTIVE 映射                             | PARTIAL                 | store callback phase/expiry/revocation matrix PASS; provider browser denial not certified       |
+| A03 | 伪造 success query 不能激活账号                        | PARTIAL                 | docs/t04-evidence.md; separate Multica login tests                                              |
+| A04 | 转发链接给其他登录用户不能完成绑定                     | PARTIAL                 | docs/t04-evidence.md; separate Multica login tests                                              |
+| A05 | 重复 callback 不产生额外连接或权限                     | PARTIAL                 | docs/t04-evidence.md; separate Multica login tests                                              |
+| A06 | 过期/替代/已撤销交易的晚 callback 不复活连接           | PARTIAL                 | store callback phase/expiry/revocation matrix PASS; provider browser denial not certified       |
+| A07 | 同 provider 两用户并发授权互不取消                     | PARTIAL                 | Native only; docs/t05-evidence.md                                                               |
+| A08 | 服务重启后可恢复授权事务并正确清理孤儿连接             | PARTIAL                 | encrypted native orphan retention + durable transactions; full restart cleanup not certified    |
+| S01 | A 用户 pin B 用户 connected_account_id 被拒绝          | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                                  |
+| S02 | 正确账号但错误 toolkit/auth config 被拒绝              | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                                  |
+| S03 | 空连接或 Action 集合不创建不受限 Token                 | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                                  |
+| S04 | 会话 token 不能调用控制 API 或 OpenConnector 管理面    | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                                  |
+| S05 | 项目 Key 不进入 Agent overlay、进程环境或普通日志      | PARTIAL                 | t07-evidence.md: claim/prompt scan PASS; actual CLI environment/logs NOT_RUN                    |
+| S06 | 修改 connectionName/native ID 不能越权或默认回退       | PASS (offline)          | tests/integration/mcp_test.go, connect_test.go: exact selector/action rejected                  |
+| S07 | 权限变化后旧会话被拒绝，新建会话重新计算交集           | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                                  |
+| S08 | 排队时间超过 token TTL 时启动前安全重新签发            | PARTIAL                 | claim-time issuance tested; wall-clock long queue NOT_RUN                                       |
+| S09 | 任务完成、取消或 Agent 删除后会话不可继续执行          | PASS (claim chain)      | Multica composio_claim_e2e_test.go: unexpired terminal/cancel/delete sessions denied            |
+| S10 | 权限存储不可用时停止执行，不依赖旧缓存放行             | PARTIAL                 | Store/handler tests only; docs/t02-evidence.md                                                  |
+| M01 | MCP initialize、tools/list、tools/call 在目标 CLI 通过 | PASS (Codex offline)    | docs/t11-t12-offline-canary.md; no model turn                                                   |
+| M02 | discovery、guide 和 execute 具有一致的权限视图         | PASS (SDK fixture)      | tests/integration/connect_test.go, mcp_test.go                                                  |
+| M03 | 原有 Composio 提示词/Skill 不导致工具名幻觉            | NOT_RUN                 | 待填写                                                                                          |
+| M04 | 未支持工作台、代理、远程 Bash 不被悄悄开放             | PASS (SDK fixture)      | only five read-only tools; unsupported routes fail                                              |
+| E01 | 同 operation ID 的传输重试不重复分发写操作             | PARTIAL                 | durable operation replay tested read-only; writes intentionally disabled                        |
+| E02 | 相同幂等键但不同参数/连接返回冲突                      | PASS (SDK fixture)      | operation fingerprint conflict tests                                                            |
+| E03 | 第三方已执行但响应丢失进入 UNKNOWN，不盲重试           | PARTIAL                 | DISPATCHED/UNKNOWN refusal tested; real third-party writes disabled                             |
+| E04 | 新业务意图即使参数相同也有独立操作 ID                  | PASS (store/SDK)        | caller operation ID is mandatory; distinct intent reserves independently                        |
+| E05 | 超过幂等窗口不能声称自动重放仍安全                     | PARTIAL                 | no automatic ledger expiry; real retention policy not deployed                                  |
+| R01 | 撤销立即阻止新的执行 admission                         | PASS (claim chain)      | local disable and live source authority before outbox                                           |
+| R02 | 上游撤权失败仍保留恢复所需信息且不恢复 ACTIVE          | PASS (simulated)        | SQLite/real PG native barriers; UNKNOWN ciphertext retention                                    |
+| R03 | unsupported 明确显示，与“上游已撤销”不同               | PASS (offline chain/UI) | explicit disconnect UNSUPPORTED; settings status render                                         |
+| R04 | revoke 与 delete 重复调用均满足各自幂等契约            | PASS (simulated)        | native barrier replay, confirmed delete, gateway deleted tombstone                              |
+| R05 | 替换真实账号不会把旧 session 权限移给新账号            | PASS (store)            | replacement generation revokes old sessions; blocked shared-grant job retained                  |
+| U01 | official 模式回归通过，不发送兼容扩展                  | PASS (focused)          | Multica SDK/integration official-mode regression tests                                          |
+| U02 | 固定基线升级、回退、数据库恢复演练通过                 | PARTIAL                 | isolated full-service restore/canary/compat-off rollback PASS; target deployment not authorized |
 
 Current evidence: [T09–T12 local candidate](t09-t12-evidence.md). PARTIAL/NOT_RUN rows remain release blockers.
