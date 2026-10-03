@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/klinsmaya/open-connector/gateway/internal/credentials"
 )
 
@@ -115,7 +116,29 @@ func (s *Store) FailConnect(ctx context.Context, f ConnectTransaction) error {
 
 // CompleteConnect consumes the verifier ticket once. The caller's subject must
 // come from an authenticated Multica session, never from browser query fields.
+var ErrConnectBusy = errors.New("connect completion retry required")
+
 func (s *Store) CompleteConnect(ctx context.Context, project, ticket, subject string) (string, string, error) {
+	// Only retry transactions PostgreSQL has definitively aborted. No native I/O
+	// occurs here; ticket ownership and all current policy are reread each time.
+	for attempt := 0; attempt < 4; attempt++ {
+		id, callback, err := s.completeConnect(ctx, project, ticket, subject)
+		if !connectSerializationFailure(err) {
+			return id, callback, err
+		}
+		if ctx.Err() != nil {
+			return "", "", ctx.Err()
+		}
+	}
+	return "", "", ErrConnectBusy
+}
+
+func connectSerializationFailure(err error) bool {
+	var pgError *pgconn.PgError
+	return errors.As(err, &pgError) && (pgError.Code == "40001" || pgError.Code == "40P01")
+}
+
+func (s *Store) completeConnect(ctx context.Context, project, ticket, subject string) (string, string, error) {
 	tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
 		return "", "", err
@@ -126,6 +149,9 @@ func (s *Store) CompleteConnect(ctx context.Context, project, ticket, subject st
  FROM connect_transaction t JOIN project p ON p.id=t.project_id AND p.enabled AND t.callback_origin=ANY(p.callback_origins) JOIN subject u ON u.project_id=t.project_id AND u.id=t.subject_id AND u.enabled JOIN auth_config ac ON ac.project_id=t.project_id AND ac.id=t.auth_config_id AND ac.enabled AND ac.revision=t.auth_config_revision
  WHERE t.project_id=$1 AND t.ticket_digest=$2 AND t.phase IN ('VERIFYING','ACTIVE') AND t.expires_at>now() AND t.ticket_expires_at>now() AND EXISTS(SELECT 1 FROM recovery_state WHERE singleton AND NOT quarantined) FOR UPDATE OF t`, project, credentials.Digest(ticket)).Scan(&f.ID, &f.Subject, &f.Config, &f.Callback, &f.NativeConnection, &f.Toolkit, &f.Runtime, &f.Phase)
 	if err != nil {
+		if connectSerializationFailure(err) {
+			return "", "", err
+		}
 		return "", "", ErrDenied
 	}
 	if f.Phase == "ACTIVE" {

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"html/template"
 	"io"
 	"net/http"
@@ -217,6 +218,10 @@ func (c *ConnectAPI) complete(w http.ResponseWriter, r *http.Request, project st
 		}
 	}
 	id, callback, err := c.DB.CompleteConnect(r.Context(), project, input.Ticket, input.Subject)
+	if errors.Is(err, store.ErrConnectBusy) {
+		failure(w, 503, "CONNECT_RETRY_REQUIRED")
+		return
+	}
 	if err != nil {
 		failure(w, 403, "IDENTITY_VERIFICATION_FAILED")
 		return
