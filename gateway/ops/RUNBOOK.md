@@ -1,7 +1,9 @@
 # Candidate operations and release gate
 
 This repository is a local development candidate. No production rollout is
-approved. `docs/t09-t12-evidence.md` lists the unverified release gates.
+approved. `docs/acceptance-audit.md` records the latest verification;
+`ops/CONFIGURATION.md` lists the exact settings, callback chain and tracked
+deployment differences. No production secret/configuration was inspected.
 
 ## Build and freeze
 

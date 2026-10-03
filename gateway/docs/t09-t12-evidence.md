@@ -125,3 +125,10 @@ loss flaw in this increment. One operational limitation remains: the native
 adapter conservatively maps native HTTP 409 (REVOKING, UNKNOWN or shared-grant
 blocking) to gateway BLOCKED. It retains recovery data and requires operator
 reconciliation; it does not claim remote success or repeat raw provider calls.
+
+## Post-v4 acceptance audit
+
+The authoritative 40-row mapping is now `acceptance.md`; new evidence and the
+Serializable completion fix are in `acceptance-audit.md`. Tracked deployment
+differences and exact unresolved inputs are in `../ops/CONFIGURATION.md`.
+Do not infer current coverage from the earlier historical summaries above.

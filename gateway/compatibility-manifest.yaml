@@ -20,7 +20,7 @@ research_baseline:
 actual_deployment:
   gateway_repository: klinsmaya/open-connector
   gateway_commit: null
-  gateway_image_digest: sha256:7d127a7327f17758f8536ae8b540c4c229d4af8bd184939c86f5b6ac7e552199
+  gateway_image_digest: sha256:b61e391a71c2f299f9e47d1596ba5f93458addd5ce765c65aba620b70f26e1d2
   multica_fork: klinsmaya/multica
   multica_commit: null
   multica_image_digest: null
@@ -126,10 +126,22 @@ development_workspace:
   old_implementation: not_recovered
 
 candidate_source:
-  openconnector_code_commit: 353533aa78a798491a0e455a54e32c362ef3406e
-  multica_commit: b2b01356b1ca588e29a6db43200c2ed0f847b2af
+  openconnector_code_commit: 4f3aa8d884ad0f39b06e58b0343e91d65d8107a5
+  multica_commit: dfcf2fd0b2706877dd97de37430a33b2b8daab96
   native_security_revision: 2
   release_gate: blocked
   target_agent_cli: codex_0.159.0-alpha.3_offline_protocol
   live_provider_revocation: not_run
   full_multiservice_canary: passed_isolated_offline_fixture
+
+acceptance_audit:
+  row_count: 40
+  evidence: docs/acceptance-audit.md
+  matrix: docs/acceptance.md
+  official_baseline: a9e82c79739446111b8ca9acbb256f584072d20d
+  official_wire_candidate: b2b01356b1ca588e29a6db43200c2ed0f847b2af
+  official_wire_sha256: 39b8591a8e3ec5ae67df90741ef46e0477524b6d4bc5e512458466a6414be7c4
+  source_sdk_unchanged_since_wire_candidate: true
+  concurrent_oauth_restart: passed_offline
+  unknown_create_restart: passed_no_redispatch
+  actual_target_deployment: not_inspected_or_authorized

@@ -11,9 +11,9 @@ Only the authorized forks were edited. Both use `feat/composio-recovery`:
 
 - OpenConnector base: 0535653ace7338adb346ccf564458eb7a57bdefd.
 - Multica base: a9e82c79739446111b8ca9acbb256f584072d20d.
-- Current tested OC code: 353533aa78a798491a0e455a54e32c362ef3406e.
-- Current Multica: b2b01356b1ca588e29a6db43200c2ed0f847b2af.
-- Gateway local image: sha256:7d127a7327f17758f8536ae8b540c4c229d4af8bd184939c86f5b6ac7e552199.
+- Current tested OC code: 4f3aa8d884ad0f39b06e58b0343e91d65d8107a5.
+- Current Multica: dfcf2fd0b2706877dd97de37430a33b2b8daab96.
+- Gateway local image: sha256:b61e391a71c2f299f9e47d1596ba5f93458addd5ce765c65aba620b70f26e1d2.
 
 T00–T10 have local implementation and progressively stronger fixture evidence:
 trusted browser identity, exact read-only sessions, claim-time live source
@@ -43,3 +43,10 @@ and [operations](../ops/RUNBOOK.md). Old tests were not reused as new PASS.
 No remote push, PR, main merge, production deployment, production migration or
 permission expansion was performed. The original foundational Library artifact
 must remain untouched; update only the established dual-repository checkpoint.
+
+The v4 follow-up maps all 40 original acceptance IDs, closes local account
+pagination/OAuth restart/concurrency/aged-claim/secret-scan gaps, compares actual
+pinned official SDK wire and documents tracked deployment differences. A newly
+reproduced Serializable OAuth completion conflict is fixed with bounded retries
+of definitively aborted database transactions only. See
+[acceptance audit](acceptance-audit.md) and [configuration](../ops/CONFIGURATION.md).

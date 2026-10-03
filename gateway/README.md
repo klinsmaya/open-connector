@@ -4,8 +4,12 @@ Older evidence files describe earlier checkpoints; they are not the current stat
 
 # OpenConnector compatibility gateway
 
-Work in progress: multica-core-v1, local development only. The loopback-only development executable exposes catalog reads; connection
-and session APIs are still unsupported. See the evidence for tested scope.
+Local candidate: multica-core-v1 with catalog, trusted-subject OAuth identity
+verification, exact read-only MCP sessions, live Multica source authority,
+durable execution/revocation and restore quarantine. The executable remains
+loopback-only; real providers and production deployment are not approved.
+See [configuration and deployment differences](ops/CONFIGURATION.md) and the
+40-row acceptance evidence for the exact tested boundaries.
 
 The adjacent authorized Multica checkout is required at `../../multica`.
 The contract suite imports its real `server/pkg/composio` package.
